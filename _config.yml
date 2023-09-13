@@ -24,6 +24,7 @@ paginate: 10
 # ======
 exclude:
   - scripts/
+  - vendor/
   - README.md
   - jekyll-theme-hamilton.gemspec
 
