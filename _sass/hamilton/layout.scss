@@ -128,7 +128,7 @@
   }
 
   .current-page {
-    text-decoration: line-through;
+    text-decoration: underline;
   }
 
   @media screen and (min-width: $on-medium) {

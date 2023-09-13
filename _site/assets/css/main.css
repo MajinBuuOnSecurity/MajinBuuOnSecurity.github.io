@@ -195,7 +195,7 @@ ul.task-list li .task-list-item-checkbox { margin: 0 .5em .25em -1.6em; vertical
 .site-nav ul.trigger .dropdown-content { display: none; position: absolute; z-index: 1; }
 .site-nav ul.trigger .dropdown-content a { padding: 5px 10px; display: inline-block; text-align: right; margin-left: auto; }
 .site-nav ul.trigger .dropdown:hover .dropdown-content { display: block; }
-.site-nav .current-page { text-decoration: line-through; }
+.site-nav .current-page { text-decoration: underline; }
 @media screen and (min-width: 900px) { .site-nav { position: static; float: right; border: none; background-color: inherit; }
   .site-nav label[for="nav-trigger"] { display: none; }
   .site-nav .menu-icon { display: none; }
