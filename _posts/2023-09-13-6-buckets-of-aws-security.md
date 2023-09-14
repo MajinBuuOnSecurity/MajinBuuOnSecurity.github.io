@@ -1,8 +1,20 @@
 ---
 layout: post
 toc: true
-title: "Preventing Accidental Internet-Exposure of AWS Resources"
+title: "6 buckets of AWS Security"
 ---
+
+There are 6 buckets a security bug can fall into on its journey through life
+
+- Prevented via SCP -- best outcome. Never turned into code. 
+- Prevented via IAM policy -- “cheap” time cost.
+- Found automatically — Found via static analysis or other tools. “cheap” time cost.
+- Found manually — Good even if it took more time. A large set of bugs can only be found this way.
+- Found externally — usually via bug bounty. Put users at real risk, expensive time cost but 100x better than other outcomes.
+- Never found —Most bugs probably end up here.
+- Exploited — the worst.
+
+
 
 Many AWS customers have suffered breaches due to exposuring resources to the Internet on accident. This post will be the 1st of a 3 part series, focusing on prevention. 
 

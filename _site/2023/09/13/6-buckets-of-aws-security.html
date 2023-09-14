@@ -7,22 +7,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!-- Begin Jekyll SEO tag v2.8.0 -->
-<title>Preventing Accidental Internet-Exposure of AWS Resources | Majin Buu on Security</title>
+<title>6 buckets of AWS Security | Majin Buu on Security</title>
 <meta name="generator" content="Jekyll v3.9.3" />
-<meta property="og:title" content="Preventing Accidental Internet-Exposure of AWS Resources" />
+<meta property="og:title" content="6 buckets of AWS Security" />
 <meta name="author" content="Majin Buu" />
 <meta property="og:locale" content="en" />
-<meta name="description" content="Many AWS customers have suffered breaches due to exposuring resources to the Internet on accident. This post will be the 1st of a 3 part series, focusing on prevention." />
-<meta property="og:description" content="Many AWS customers have suffered breaches due to exposuring resources to the Internet on accident. This post will be the 1st of a 3 part series, focusing on prevention." />
-<link rel="canonical" href="http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html" />
-<meta property="og:url" content="http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html" />
+<meta name="description" content="There are 6 buckets a security bug can fall into on its journey through life" />
+<meta property="og:description" content="There are 6 buckets a security bug can fall into on its journey through life" />
+<link rel="canonical" href="http://localhost:4000/2023/09/13/6-buckets-of-aws-security.html" />
+<meta property="og:url" content="http://localhost:4000/2023/09/13/6-buckets-of-aws-security.html" />
 <meta property="og:site_name" content="Majin Buu on Security" />
 <meta property="og:type" content="article" />
 <meta property="article:published_time" content="2023-09-13T00:00:00-07:00" />
 <meta name="twitter:card" content="summary" />
-<meta property="twitter:title" content="Preventing Accidental Internet-Exposure of AWS Resources" />
+<meta property="twitter:title" content="6 buckets of AWS Security" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-09-13T00:00:00-07:00","datePublished":"2023-09-13T00:00:00-07:00","description":"Many AWS customers have suffered breaches due to exposuring resources to the Internet on accident. This post will be the 1st of a 3 part series, focusing on prevention.","headline":"Preventing Accidental Internet-Exposure of AWS Resources","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html"}</script>
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-09-13T00:00:00-07:00","datePublished":"2023-09-13T00:00:00-07:00","description":"There are 6 buckets a security bug can fall into on its journey through life","headline":"6 buckets of AWS Security","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/09/13/6-buckets-of-aws-security.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/09/13/6-buckets-of-aws-security.html"}</script>
 <!-- End Jekyll SEO tag -->
 
 
@@ -114,7 +114,7 @@
 
   <header class="post-header">
 
-    <h1 class="post-title p-name" itemprop="name headline">Preventing Accidental Internet-Exposure of AWS Resources</h1>
+    <h1 class="post-title p-name" itemprop="name headline">6 buckets of AWS Security</h1>
     <p class="post-meta"><time class="dt-published" datetime="2023-09-13T00:00:00-07:00" itemprop="datePublished">
         Sep 13, 2023
       </time></p>
@@ -122,7 +122,19 @@
   </header>
 
   <div class="post-content e-content" itemprop="articleBody">
-    <p>Many AWS customers have suffered breaches due to exposuring resources to the Internet on accident. This post will be the 1st of a 3 part series, focusing on prevention.</p>
+    <p>There are 6 buckets a security bug can fall into on its journey through life</p>
+
+<ul>
+  <li>Prevented via SCP – best outcome. Never turned into code.</li>
+  <li>Prevented via IAM policy – “cheap” time cost.</li>
+  <li>Found automatically — Found via static analysis or other tools. “cheap” time cost.</li>
+  <li>Found manually — Good even if it took more time. A large set of bugs can only be found this way.</li>
+  <li>Found externally — usually via bug bounty. Put users at real risk, expensive time cost but 100x better than other outcomes.</li>
+  <li>Never found —Most bugs probably end up here.</li>
+  <li>Exploited — the worst.</li>
+</ul>
+
+<p>Many AWS customers have suffered breaches due to exposuring resources to the Internet on accident. This post will be the 1st of a 3 part series, focusing on prevention.</p>
 
 <h2 id="some-great-heading-h2">Some great heading (h2)</h2>
 
@@ -298,15 +310,15 @@
 
     <nav class="post-pagination" role="navigation">
       
-        <a class="post-previous" href="/2023/09/13/6-buckets-of-aws-security.html">
-          <h4 class="post-pagination-label">Prev</h4>
-          <span class="post-pagination-title">
-            <i class="fas fa-arrow-left"></i> 6 buckets of AWS Security
 
+      
+        <a class="post-next" href="/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html">
+          <h4 class="post-pagination-label">Next</h4>
+          <span class="post-pagination-title">
+            Preventing Accidental Internet-Exposure of AWS Resources
+ <i class="fas fa-arrow-right"></i>
           </span>
         </a>
-      
-
       
     </nav>
   </footer>
