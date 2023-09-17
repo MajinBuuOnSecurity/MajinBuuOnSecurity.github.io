@@ -4,24 +4,38 @@ toc: true
 title: "Preventing Accidental Internet-Exposure of AWS Resources"
 ---
 
-Many AWS customers have suffered breaches due to exposuring resources to the Internet by accident. This post walks through all the different ways to mitigate that risk.
+Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. [^1] This post walks through the different ways to mitigate that risk.
 
+[^1]: See [this post](https://maia.crimew.gay/posts/how-to-hack-an-airline/) for an example breach, one of many [AWS customer security incidents](https://github.com/ramimac/aws-customer-security-incidents#background).
+
+
+## What Good Looks Like
+
+S3 is far simpler to secure than resources in a VPC, so let us start there to get a sense of what we are aiming for.
+
+In your multi-account AWS strategy, most accounts should have [account-wide public block access for S3](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_account_public_access_block) enabled at account creation time and have that control made immutable [via SCP](https://summitroute.com/blog/2020/03/25/aws_scp_best_practices/#protect-security-settings). This eliminates the possibility of S3 public data leaks. 
+
+When a public S3 bucket is needed, it should be made in a special `S3 Public Resources` account (under a separate OU) where only public S3 buckets can live.[^2]
+
+[^2]: New S3 buckets are private by default now, but being able to look at your AWS Org structure from a thousand-foot view and know which subtree can have public S3 buckets is invaluable.
+
+A simplified AWS organization structure supporting this is:
+
+![alt text](https://i.imgur.com/bPIKZoC.png)
 
 ## About The Problem
 
-In your multi-account AWS strategy, most accounts should have account-wide public block access for S3 enabled at account creation time and turned immutable via SCP. This prevents a whole class of issues. When a public S3 bucket is needed, separate accounts (under a separate OU than other accounts) should be made to host them.
-
-How do you implement the same strategy for resources in a VPC (EC2 instances, ELBs, RDS databases, etc.)?
+The question this post answers is: How do you implement the same strategy for resources in a VPC (EC2 instances, ELBs, RDS databases, etc.)?
 
 
-In AWS, Egress to the Internet is tightly coupled with Ingress from the Internet. This is because an Internet Gateway is necessary for both. In most cases, only the former is needed, to e.g. reach out to 3rd parties or update Linux packages.
+This is more complicated, because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates). The reason for this is an Internet Gateway (IGW) is necessary for both, so if you have IAM permissions to make an IGW, you can mess it up.
 
+The solution is to architect your network so subaccount owners can only use IGWs for Egress. This is done by what is called [Centralized Egress](https://docs.aws.amazon.com/prescriptive-guidance/latest/transitioning-to-multiple-aws-accounts/centralized-egress.html), and there are a few ways to implement it.
 
+## Preventing by Design: Implmentation Options For Centralized Egress
 
+> ℹ️ It is important to note, that VPC Peering is mostly not an option. See the [FAQ](http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html#why-is-vpc-peering-not-an-option) for more information.
 
-## Options Towards Preventing by Design
-
-It is important to note, that VPC Peering is not an option. See the FAQ for more information.
 
 This will also save you NATGW money, which is a win for your partner teams. (TODO: Word this about persuasion.)
 
@@ -130,11 +144,46 @@ For Sandbox accounts, this is not feasible.
 
 ## FAQ
 
-- But what about banning e.g Elastic IP Actions?
-That is one mole you can whack, but there are so many others. 
+### Why is VPC peering not an option?
 
-- But what about VPC peering?
-- How do I access machines if not public IP & IP whitelist, or DirectConnect->PrivateLink?
+The short-answer is that, VPC peering is not transitive, so it is not designed for you to be able to 'hop' through an IGW via it. If you change your VPC route table to send Internet-destined traffic to a VPC peering connection, the traffic won't pass through it.
+
+AWS lists this under [VPC peering limitations](https://docs.aws.amazon.com/vpc/latest/peering/vpc-peering-basics.html#vpc-peering-limitations):
+
+> - If VPC A has an internet gateway, resources in VPC B can't use the internet gateway in VPC A to access the internet.
+
+> - If VPC A has an NAT device that provides internet access to subnets in VPC A, resources in VPC B can't use the NAT device in VPC A to access the internet.
+
+A [longer explaination is](https://www.reddit.com/r/aws/comments/1625r2h/comment/jxxodvl):
+
+> AWS has specific design principles and limitations in place for VPC peering to ensure security and network integrity. One of these limitations is that edge-to-edge routing is not supported over VPC peering connections. VPC connections are specifically designed to be non-transitive.
+
+>This means resources in one VPC cannot use an internet gateway or a NAT device in a peer VPC to access the internet. AWS does not propagate packets that are destined for the internet from one VPC to another over a peering connection, even if you try to configure NAT at the instance level.
+
+>The primary reason for this limitation is to maintain a clear network boundary and enforce security policies. If AWS allowed traffic from VPC B to egress to the internet through VPC A's NAT gateway, it would essentially make VPC A a transit VPC, which breaks the AWS design principle of VPC peering as a non-transitive relationship.
+
+With that said, if you are will to do a lot of heavy lifting that is orthogonal to AWS primitives, you _can_ use peering in combination with [Internet Egress Filtering](https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9), to accomplish centralized egress. This is because the destination IP is not the Internet, but the private IP of the proxy living in the peered VPC. Therefore it will happily pass through the peering connection. This is assuming you are deploying e.g. iptables to re-route Internet-destined traffic on every host.
+
+Some reasons you may not want to do this are:
+- Significant effort
+- It won't be possible to do for all subaccount types, such as test/sandbox accounts.
+- Egress filtering (P2/P3) is further down the security maturity roadmap than preventing accidental Internet-exposure (P1). So coupling the 2 may not make strategic sense.
+- If something goes wrong, the lost traffic will not appear in VPC flow logs [^98] or traffic mirroring logs.[^985] The DNS lookups will show up in Route53 query logs, but that's it. You will need full confidence in your iptables deployment or additional host/application monitoring.
+
+With that said, AWS does not have a primitive to perform Egress filtering [^99], and so you will have to implement Egress filtering via a proxy eventually. Therefore, in production accounts you may choose to go `peering -> proxy`. And for sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).
+
+[^98]: [Flow log limitations](https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html#flow-logs-limitations) does not state, "Internet-bound traffic sent to a peering connection" under `The following types of traffic are not logged:`. After testing I believe it should.
+
+[^985]: A peering connection cannot be selected as a [traffic mirror target](https://docs.aws.amazon.com/vpc/latest/mirroring/traffic-mirroring-targets.html).
+
+[^99]: It has AWS Network Firewall, which can be fooled via SNI spoofing. So it is at best a stepping stone to keep and inventory of your Egress traffic if you can't get a proxy up and running short-term.
+
+
+
+### How do I access my machines if not public IP & IP whitelist, or DirectConnect->PrivateLink?
+
+Use SSM.
+
 
 
 ## Seeking Feedback

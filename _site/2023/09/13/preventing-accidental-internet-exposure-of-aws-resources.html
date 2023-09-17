@@ -12,8 +12,8 @@
 <meta property="og:title" content="Preventing Accidental Internet-Exposure of AWS Resources" />
 <meta name="author" content="Majin Buu" />
 <meta property="og:locale" content="en" />
-<meta name="description" content="Many AWS customers have suffered breaches due to exposuring resources to the Internet by accident. This post walks through all the different ways to mitigate that risk." />
-<meta property="og:description" content="Many AWS customers have suffered breaches due to exposuring resources to the Internet by accident. This post walks through all the different ways to mitigate that risk." />
+<meta name="description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. 1 This post walks through the different ways to mitigate that risk. See this post for an example breach, one of many AWS customer security incidents. &#8617;" />
+<meta property="og:description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. 1 This post walks through the different ways to mitigate that risk. See this post for an example breach, one of many AWS customer security incidents. &#8617;" />
 <link rel="canonical" href="http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html" />
 <meta property="og:url" content="http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html" />
 <meta property="og:site_name" content="Majin Buu on Security" />
@@ -22,7 +22,7 @@
 <meta name="twitter:card" content="summary" />
 <meta property="twitter:title" content="Preventing Accidental Internet-Exposure of AWS Resources" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-09-13T00:00:00-07:00","datePublished":"2023-09-13T00:00:00-07:00","description":"Many AWS customers have suffered breaches due to exposuring resources to the Internet by accident. This post walks through all the different ways to mitigate that risk.","headline":"Preventing Accidental Internet-Exposure of AWS Resources","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html"}</script>
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-09-13T00:00:00-07:00","datePublished":"2023-09-13T00:00:00-07:00","description":"Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. 1 This post walks through the different ways to mitigate that risk. See this post for an example breach, one of many AWS customer security incidents. &#8617;","headline":"Preventing Accidental Internet-Exposure of AWS Resources","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html"}</script>
 <!-- End Jekyll SEO tag -->
 
 
@@ -88,8 +88,9 @@
             <h3 class="toc-title">Table of Contents</h3>
 <nav class="toc-nav">
   <ul class="toc">
+  <li><a href="#what-good-looks-like">What Good Looks Like</a></li>
   <li><a href="#about-the-problem">About The Problem</a></li>
-  <li><a href="#options-towards-preventing-by-design">Options Towards Preventing by Design</a>
+  <li><a href="#preventing-by-design-implmentation-options-for-centralized-egress">Preventing by Design: Implmentation Options For Centralized Egress</a>
     <ul>
       <li><a href="#transit-gateway-tgw">Transit Gateway (TGW)</a></li>
       <li><a href="#vpc-sharing">VPC Sharing</a></li>
@@ -103,7 +104,12 @@
     </ul>
   </li>
   <li><a href="#short-comings">Short comings</a></li>
-  <li><a href="#faq">FAQ</a></li>
+  <li><a href="#faq">FAQ</a>
+    <ul>
+      <li><a href="#why-is-vpc-peering-not-an-option">Why is VPC peering not an option?</a></li>
+      <li><a href="#how-do-i-access-my-machines-if-not-public-ip--ip-whitelist-or-directconnect-privatelink">How do I access my machines if not public IP &amp; IP whitelist, or DirectConnect-&gt;PrivateLink?</a></li>
+    </ul>
+  </li>
   <li><a href="#seeking-feedback">Seeking Feedback</a></li>
   <li><a href="#conclusion">Conclusion</a></li>
   <li><a href="#appendix-a-aws-networking-basics">Appendix A: AWS Networking Basics</a></li>
@@ -126,19 +132,33 @@
   </header>
 
   <div class="post-content e-content" itemprop="articleBody">
-    <p>Many AWS customers have suffered breaches due to exposuring resources to the Internet by accident. This post walks through all the different ways to mitigate that risk.</p>
+    <p>Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. <sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> This post walks through the different ways to mitigate that risk.</p>
+
+<h2 id="what-good-looks-like">What Good Looks Like</h2>
+
+<p>S3 is far simpler to secure than resources in a VPC, so let us start there to get a sense of what we are aiming for.</p>
+
+<p>In your multi-account AWS strategy, most accounts should have <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_account_public_access_block">account-wide public block access for S3</a> enabled at account creation time and have that control made immutable <a href="https://summitroute.com/blog/2020/03/25/aws_scp_best_practices/#protect-security-settings">via SCP</a>. This eliminates the possibility of S3 public data leaks.</p>
+
+<p>When a public S3 bucket is needed, it should be made in a special <code class="language-plaintext highlighter-rouge">S3 Public Resources</code> account (under a separate OU) where only public S3 buckets can live.<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup></p>
+
+<p>A simplified AWS organization structure supporting this is:</p>
+
+<p><img src="https://i.imgur.com/bPIKZoC.png" alt="alt text" /></p>
 
 <h2 id="about-the-problem">About The Problem</h2>
 
-<p>In your multi-account AWS strategy, most accounts should have account-wide public block access for S3 enabled at account creation time and turned immutable via SCP. This prevents a whole class of issues. When a public S3 bucket is needed, separate accounts (under a separate OU than other accounts) should be made to host them.</p>
+<p>The question this post answers is: How do you implement the same strategy for resources in a VPC (EC2 instances, ELBs, RDS databases, etc.)?</p>
 
-<p>How do you implement the same strategy for resources in a VPC (EC2 instances, ELBs, RDS databases, etc.)?</p>
+<p>This is more complicated, because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates). The reason for this is an Internet Gateway (IGW) is necessary for both, so if you have IAM permissions to make an IGW, you can mess it up.</p>
 
-<p>In AWS, Egress to the Internet is tightly coupled with Ingress from the Internet. This is because an Internet Gateway is necessary for both. In most cases, only the former is needed, to e.g. reach out to 3rd parties or update Linux packages.</p>
+<p>The solution is to architect your network so subaccount owners can only use IGWs for Egress. This is done by what is called <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/transitioning-to-multiple-aws-accounts/centralized-egress.html">Centralized Egress</a>, and there are a few ways to implement it.</p>
 
-<h2 id="options-towards-preventing-by-design">Options Towards Preventing by Design</h2>
+<h2 id="preventing-by-design-implmentation-options-for-centralized-egress">Preventing by Design: Implmentation Options For Centralized Egress</h2>
 
-<p>It is important to note, that VPC Peering is not an option. See the FAQ for more information.</p>
+<blockquote>
+  <p>ℹ️ It is important to note, that VPC Peering is mostly not an option. See the <a href="http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html#why-is-vpc-peering-not-an-option">FAQ</a> for more information.</p>
+</blockquote>
 
 <p>This will also save you NATGW money, which is a win for your partner teams. (TODO: Word this about persuasion.)</p>
 
@@ -283,14 +303,53 @@ For Sandbox accounts, this is not feasible.</p>
 
 <h2 id="faq">FAQ</h2>
 
+<h3 id="why-is-vpc-peering-not-an-option">Why is VPC peering not an option?</h3>
+
+<p>The short-answer is that, VPC peering is not transitive, so it is not designed for you to be able to ‘hop’ through an IGW via it. If you change your VPC route table to send Internet-destined traffic to a VPC peering connection, the traffic won’t pass through it.</p>
+
+<p>AWS lists this under <a href="https://docs.aws.amazon.com/vpc/latest/peering/vpc-peering-basics.html#vpc-peering-limitations">VPC peering limitations</a>:</p>
+
+<blockquote>
+  <ul>
+    <li>If VPC A has an internet gateway, resources in VPC B can’t use the internet gateway in VPC A to access the internet.</li>
+  </ul>
+</blockquote>
+
+<blockquote>
+  <ul>
+    <li>If VPC A has an NAT device that provides internet access to subnets in VPC A, resources in VPC B can’t use the NAT device in VPC A to access the internet.</li>
+  </ul>
+</blockquote>
+
+<p>A <a href="https://www.reddit.com/r/aws/comments/1625r2h/comment/jxxodvl">longer explaination is</a>:</p>
+
+<blockquote>
+  <p>AWS has specific design principles and limitations in place for VPC peering to ensure security and network integrity. One of these limitations is that edge-to-edge routing is not supported over VPC peering connections. VPC connections are specifically designed to be non-transitive.</p>
+</blockquote>
+
+<blockquote>
+  <p>This means resources in one VPC cannot use an internet gateway or a NAT device in a peer VPC to access the internet. AWS does not propagate packets that are destined for the internet from one VPC to another over a peering connection, even if you try to configure NAT at the instance level.</p>
+</blockquote>
+
+<blockquote>
+  <p>The primary reason for this limitation is to maintain a clear network boundary and enforce security policies. If AWS allowed traffic from VPC B to egress to the internet through VPC A’s NAT gateway, it would essentially make VPC A a transit VPC, which breaks the AWS design principle of VPC peering as a non-transitive relationship.</p>
+</blockquote>
+
+<p>With that said, if you are will to do a lot of heavy lifting that is orthogonal to AWS primitives, you <em>can</em> use peering in combination with <a href="https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9">Internet Egress Filtering</a>, to accomplish centralized egress. This is because the destination IP is not the Internet, but the private IP of the proxy living in the peered VPC. Therefore it will happily pass through the peering connection. This is assuming you are deploying e.g. iptables to re-route Internet-destined traffic on every host.</p>
+
+<p>Some reasons you may not want to do this are:</p>
 <ul>
-  <li>
-    <p>But what about banning e.g Elastic IP Actions?
-That is one mole you can whack, but there are so many others.</p>
-  </li>
-  <li>But what about VPC peering?</li>
-  <li>How do I access machines if not public IP &amp; IP whitelist, or DirectConnect-&gt;PrivateLink?</li>
+  <li>Significant effort</li>
+  <li>It won’t be possible to do for all subaccount types, such as test/sandbox accounts.</li>
+  <li>Egress filtering (P2/P3) is further down the security maturity roadmap than preventing accidental Internet-exposure (P1). So coupling the 2 may not make strategic sense.</li>
+  <li>If something goes wrong, the lost traffic will not appear in VPC flow logs <sup id="fnref:98" role="doc-noteref"><a href="#fn:98" class="footnote" rel="footnote">3</a></sup> or traffic mirroring logs.<sup id="fnref:985" role="doc-noteref"><a href="#fn:985" class="footnote" rel="footnote">4</a></sup> The DNS lookups will show up in Route53 query logs, but that’s it. You will need full confidence in your iptables deployment or additional host/application monitoring.</li>
 </ul>
+
+<p>With that said, AWS does not have a primitive to perform Egress filtering <sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">5</a></sup>, and so you will have to implement Egress filtering via a proxy eventually. Therefore, in production accounts you may choose to go <code class="language-plaintext highlighter-rouge">peering -&gt; proxy</code>. And for sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).</p>
+
+<h3 id="how-do-i-access-my-machines-if-not-public-ip--ip-whitelist-or-directconnect-privatelink">How do I access my machines if not public IP &amp; IP whitelist, or DirectConnect-&gt;PrivateLink?</h3>
+
+<p>Use SSM.</p>
 
 <h2 id="seeking-feedback">Seeking Feedback</h2>
 
@@ -317,6 +376,25 @@ In the center: via Envoy or Smokescreen.</p>
   <li>Elastic Load Balancers</li>
 </ul>
 
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>See <a href="https://maia.crimew.gay/posts/how-to-hack-an-airline/">this post</a> for an example breach, one of many <a href="https://github.com/ramimac/aws-customer-security-incidents#background">AWS customer security incidents</a>. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>New S3 buckets are private by default now, but being able to look at your AWS Org structure from a thousand-foot view and know which subtree can have public S3 buckets is invaluable. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:98" role="doc-endnote">
+      <p><a href="https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html#flow-logs-limitations">Flow log limitations</a> does not state, “Internet-bound traffic sent to a peering connection” under <code class="language-plaintext highlighter-rouge">The following types of traffic are not logged:</code>. After testing I believe it should. <a href="#fnref:98" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:985" role="doc-endnote">
+      <p>A peering connection cannot be selected as a <a href="https://docs.aws.amazon.com/vpc/latest/mirroring/traffic-mirroring-targets.html">traffic mirror target</a>. <a href="#fnref:985" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:99" role="doc-endnote">
+      <p>It has AWS Network Firewall, which can be fooled via SNI spoofing. So it is at best a stepping stone to keep and inventory of your Egress traffic if you can’t get a proxy up and running short-term. <a href="#fnref:99" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
 
   </div>
 
