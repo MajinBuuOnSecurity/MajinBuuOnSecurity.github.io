@@ -90,11 +90,12 @@
   <ul class="toc">
   <li><a href="#what-good-looks-like">What Good Looks Like</a></li>
   <li><a href="#about-the-problem">About The Problem</a></li>
-  <li><a href="#preventing-by-design-implmentation-options-for-centralized-egress">Preventing by Design: Implmentation Options For Centralized Egress</a>
+  <li><a href="#preventing-by-design">Preventing by Design</a>
     <ul>
-      <li><a href="#transit-gateway-tgw">Transit Gateway (TGW)</a></li>
-      <li><a href="#vpc-sharing">VPC Sharing</a></li>
       <li><a href="#ipv6-for-egress">IPv6 for Egress</a></li>
+      <li><a href="#transit-gateway-tgw">Transit Gateway (TGW)</a></li>
+      <li><a href="#vpc-peering-with-egress-filtering">VPC Peering with Egress Filtering</a></li>
+      <li><a href="#vpc-sharing">VPC Sharing</a></li>
       <li><a href="#tradeoffs">Tradeoffs</a></li>
     </ul>
   </li>
@@ -106,7 +107,7 @@
   <li><a href="#short-comings">Short comings</a></li>
   <li><a href="#faq">FAQ</a>
     <ul>
-      <li><a href="#why-is-vpc-peering-not-an-option">Why is VPC peering not an option?</a></li>
+      <li><a href="#why-is-vpc-peering-not-a-straightforward-option">Why is VPC peering not a straightforward option?</a></li>
       <li><a href="#how-do-i-access-my-machines-if-not-public-ip--ip-whitelist-or-directconnect-privatelink">How do I access my machines if not public IP &amp; IP whitelist, or DirectConnect-&gt;PrivateLink?</a></li>
     </ul>
   </li>
@@ -150,21 +151,29 @@
 
 <p>The question this post answers is: How do you implement the same strategy for resources in a VPC (EC2 instances, ELBs, RDS databases, etc.)?</p>
 
-<p>This is more complicated, because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates). The reason for this is an Internet Gateway (IGW) is necessary for both, so if you have IAM permissions to make an IGW, you can mess it up.</p>
+<p>This is more complicated, because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).</p>
+
+<p>The reason they are tightly coupled: is an Internet Gateway (IGW) is necessary for both. So if you have IAM permissions to make an IGW, or are unrestrained in how you create resources in a VPC that has one, you can expose resources to the Internet.</p>
+
+<p>There are many ways to make this mistake, but the following options limit almost all of them. <sup id="fnref:777" role="doc-noteref"><a href="#fn:777" class="footnote" rel="footnote">3</a></sup></p>
+
+<h2 id="preventing-by-design">Preventing by Design</h2>
 
 <p>The solution is to architect your network so subaccount owners can only use IGWs for Egress. This is done by what is called <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/transitioning-to-multiple-aws-accounts/centralized-egress.html">Centralized Egress</a>, and there are a few ways to implement it.</p>
 
-<h2 id="preventing-by-design-implmentation-options-for-centralized-egress">Preventing by Design: Implmentation Options For Centralized Egress</h2>
-
-<blockquote>
-  <p>ℹ️ It is important to note, that VPC Peering is mostly not an option. See the <a href="http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html#why-is-vpc-peering-not-an-option">FAQ</a> for more information.</p>
-</blockquote>
-
 <p>This will also save you NATGW money, which is a win for your partner teams. (TODO: Word this about persuasion.)</p>
+
+<h3 id="ipv6-for-egress">IPv6 for Egress</h3>
+
+<p>Remember how I said “in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet” above. For IPv6, that’s a lie.</p>
+
+<p>IPv6 addresses are globally unique, and therefore public by default. Due to this, AWS created the primitive of an <a href="https://docs.aws.amazon.com/vpc/latest/userguide/egress-only-internet-gateway.html">Egress-only Internet Gateway</a>,</p>
+
+<p>With this primitive, you are off to the races.</p>
 
 <h3 id="transit-gateway-tgw">Transit Gateway (TGW)</h3>
 
-<p>This is the most common way of implementing this.</p>
+<p>This is the most common way of implementing this, and probably the best. If money is no issue for you: go this route.</p>
 
 <h4 id="a-note-on-cost">A Note On Cost</h4>
 
@@ -182,6 +191,22 @@
 
 <p>Sending huge amounts of data through a NAT Gateway should be avoided anyway.
 S3, Splunk, and <a href="https://docs.honeycomb.io/integrations/aws/aws-privatelink/">Honeycomb</a> and similar companies have VPC endpoints.</p>
+
+<h3 id="vpc-peering-with-egress-filtering">VPC Peering with Egress Filtering</h3>
+
+<p>VPC Peering is mostly not an option. See the <a href="http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html#why-is-vpc-peering-not-an-option">FAQ</a> for more information.</p>
+
+<p>However, if you are will to do a lot of heavy lifting that is orthogonal to AWS primitives, you <em>can</em> use peering in combination with <a href="https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9">Internet Egress Filtering</a>, to accomplish centralized egress. This is because the destination IP of outbound traffic won’t be the Internet, but the private IP of the proxy living in the peered VPC. Therefore, it will happily pass through the peering connection. This is assuming you are deploying e.g. iptables to re-route Internet-destined traffic on every host.</p>
+
+<p>Some reasons you may not want to do this are:</p>
+<ul>
+  <li>Significant effort</li>
+  <li>It won’t be possible to do for all subaccount types, such as test/sandbox accounts. (Where requiring <code class="language-plaintext highlighter-rouge">iptables</code> and proxies is too heavy weight.)</li>
+  <li>Egress filtering (P2/P3) is further down the security maturity roadmap than preventing accidental Internet-exposure (P1). So coupling the two may not make strategic sense.</li>
+  <li>If something goes wrong on the host, the lost traffic will not appear in VPC flow logs <sup id="fnref:98" role="doc-noteref"><a href="#fn:98" class="footnote" rel="footnote">4</a></sup> or traffic mirroring logs.<sup id="fnref:985" role="doc-noteref"><a href="#fn:985" class="footnote" rel="footnote">5</a></sup> The DNS lookups will show up in Route53 query logs, but that’s it.</li>
+</ul>
+
+<p>With that said, AWS does not have a primitive to perform Egress filtering <sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">6</a></sup>, and so you will have to implement Egress filtering via a proxy eventually. Therefore, in production accounts you may choose to go <code class="language-plaintext highlighter-rouge">peering -&gt; proxy</code>. And for sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).</p>
 
 <h3 id="vpc-sharing">VPC Sharing</h3>
 
@@ -208,10 +233,6 @@ S3, Splunk, and <a href="https://docs.honeycomb.io/integrations/aws/aws-privatel
 </blockquote>
 
 <p>from <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/migrating-accounts-between-aws-organizations-from-a-network-perspective/">Migrating accounts between AWS Organizations from a network perspective</a> for more information.</p>
-
-<h3 id="ipv6-for-egress">IPv6 for Egress</h3>
-
-<p>You can do everything you normally do with IPv4, but 1</p>
 
 <h3 id="tradeoffs">Tradeoffs</h3>
 
@@ -303,7 +324,7 @@ For Sandbox accounts, this is not feasible.</p>
 
 <h2 id="faq">FAQ</h2>
 
-<h3 id="why-is-vpc-peering-not-an-option">Why is VPC peering not an option?</h3>
+<h3 id="why-is-vpc-peering-not-a-straightforward-option">Why is VPC peering not a straightforward option?</h3>
 
 <p>The short-answer is that, VPC peering is not transitive, so it is not designed for you to be able to ‘hop’ through an IGW via it. If you change your VPC route table to send Internet-destined traffic to a VPC peering connection, the traffic won’t pass through it.</p>
 
@@ -321,7 +342,7 @@ For Sandbox accounts, this is not feasible.</p>
   </ul>
 </blockquote>
 
-<p>A <a href="https://www.reddit.com/r/aws/comments/1625r2h/comment/jxxodvl">longer explaination is</a>:</p>
+<p>A <a href="https://www.reddit.com/r/aws/comments/1625r2h/comment/jxxodvl">longer explanation is</a>:</p>
 
 <blockquote>
   <p>AWS has specific design principles and limitations in place for VPC peering to ensure security and network integrity. One of these limitations is that edge-to-edge routing is not supported over VPC peering connections. VPC connections are specifically designed to be non-transitive.</p>
@@ -334,18 +355,6 @@ For Sandbox accounts, this is not feasible.</p>
 <blockquote>
   <p>The primary reason for this limitation is to maintain a clear network boundary and enforce security policies. If AWS allowed traffic from VPC B to egress to the internet through VPC A’s NAT gateway, it would essentially make VPC A a transit VPC, which breaks the AWS design principle of VPC peering as a non-transitive relationship.</p>
 </blockquote>
-
-<p>With that said, if you are will to do a lot of heavy lifting that is orthogonal to AWS primitives, you <em>can</em> use peering in combination with <a href="https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9">Internet Egress Filtering</a>, to accomplish centralized egress. This is because the destination IP is not the Internet, but the private IP of the proxy living in the peered VPC. Therefore it will happily pass through the peering connection. This is assuming you are deploying e.g. iptables to re-route Internet-destined traffic on every host.</p>
-
-<p>Some reasons you may not want to do this are:</p>
-<ul>
-  <li>Significant effort</li>
-  <li>It won’t be possible to do for all subaccount types, such as test/sandbox accounts.</li>
-  <li>Egress filtering (P2/P3) is further down the security maturity roadmap than preventing accidental Internet-exposure (P1). So coupling the 2 may not make strategic sense.</li>
-  <li>If something goes wrong, the lost traffic will not appear in VPC flow logs <sup id="fnref:98" role="doc-noteref"><a href="#fn:98" class="footnote" rel="footnote">3</a></sup> or traffic mirroring logs.<sup id="fnref:985" role="doc-noteref"><a href="#fn:985" class="footnote" rel="footnote">4</a></sup> The DNS lookups will show up in Route53 query logs, but that’s it. You will need full confidence in your iptables deployment or additional host/application monitoring.</li>
-</ul>
-
-<p>With that said, AWS does not have a primitive to perform Egress filtering <sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">5</a></sup>, and so you will have to implement Egress filtering via a proxy eventually. Therefore, in production accounts you may choose to go <code class="language-plaintext highlighter-rouge">peering -&gt; proxy</code>. And for sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).</p>
 
 <h3 id="how-do-i-access-my-machines-if-not-public-ip--ip-whitelist-or-directconnect-privatelink">How do I access my machines if not public IP &amp; IP whitelist, or DirectConnect-&gt;PrivateLink?</h3>
 
@@ -383,6 +392,9 @@ In the center: via Envoy or Smokescreen.</p>
     </li>
     <li id="fn:2" role="doc-endnote">
       <p>New S3 buckets are private by default now, but being able to look at your AWS Org structure from a thousand-foot view and know which subtree can have public S3 buckets is invaluable. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:777" role="doc-endnote">
+      <p>Read the full post, particularly the <a href="http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html#stopping-the-bleeding">Stopping The Bleeding</a> section, for more in-depth look. <a href="#fnref:777" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:98" role="doc-endnote">
       <p><a href="https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html#flow-logs-limitations">Flow log limitations</a> does not state, “Internet-bound traffic sent to a peering connection” under <code class="language-plaintext highlighter-rouge">The following types of traffic are not logged:</code>. After testing I believe it should. <a href="#fnref:98" class="reversefootnote" role="doc-backlink">&#8617;</a></p>

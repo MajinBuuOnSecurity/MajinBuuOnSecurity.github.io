@@ -28,21 +28,34 @@ A simplified AWS organization structure supporting this is:
 The question this post answers is: How do you implement the same strategy for resources in a VPC (EC2 instances, ELBs, RDS databases, etc.)?
 
 
-This is more complicated, because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates). The reason for this is an Internet Gateway (IGW) is necessary for both, so if you have IAM permissions to make an IGW, you can mess it up.
+This is more complicated, because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).
+
+The reason they are tightly coupled: is an Internet Gateway (IGW) is necessary for both. So if you have IAM permissions to make an IGW, or are unrestrained in how you create resources in a VPC that has one, you can expose resources to the Internet.
+
+There are many ways to make this mistake, but the following options limit almost all of them. [^777]
+
+[^777]: Read the full post, particularly the [Stopping The Bleeding](http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html#stopping-the-bleeding) section, for more in-depth look.
+
+## Preventing by Design
 
 The solution is to architect your network so subaccount owners can only use IGWs for Egress. This is done by what is called [Centralized Egress](https://docs.aws.amazon.com/prescriptive-guidance/latest/transitioning-to-multiple-aws-accounts/centralized-egress.html), and there are a few ways to implement it.
 
-## Preventing by Design: Implmentation Options For Centralized Egress
-
-> ℹ️ It is important to note, that VPC Peering is mostly not an option. See the [FAQ](http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html#why-is-vpc-peering-not-an-option) for more information.
-
-
 This will also save you NATGW money, which is a win for your partner teams. (TODO: Word this about persuasion.)
+
+### IPv6 for Egress
+
+Remember how I said "in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet" above. For IPv6, that's a lie.
+
+IPv6 addresses are globally unique, and therefore public by default. Due to this, AWS created the primitive of an [Egress-only Internet Gateway](https://docs.aws.amazon.com/vpc/latest/userguide/egress-only-internet-gateway.html), 
+
+With this primitive, you are off to the races.
 
 
 ### Transit Gateway (TGW)
 
-This is the most common way of implementing this.
+This is the most common way of implementing this, and probably the best. If money is no issue for you: go this route.
+
+
 
 
 #### A Note On Cost
@@ -59,7 +72,26 @@ Sending huge amounts of data through a NAT Gateway should be avoided anyway.
 S3, Splunk, and [Honeycomb](https://docs.honeycomb.io/integrations/aws/aws-privatelink/) and similar companies have VPC endpoints. 
 
 
+### VPC Peering with Egress Filtering
 
+VPC Peering is mostly not an option. See the [FAQ](http://localhost:4000/2023/09/13/preventing-accidental-internet-exposure-of-aws-resources.html#why-is-vpc-peering-not-an-option) for more information.
+
+However, if you are will to do a lot of heavy lifting that is orthogonal to AWS primitives, you _can_ use peering in combination with [Internet Egress Filtering](https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9), to accomplish centralized egress. This is because the destination IP of outbound traffic won't be the Internet, but the private IP of the proxy living in the peered VPC. Therefore, it will happily pass through the peering connection. This is assuming you are deploying e.g. iptables to re-route Internet-destined traffic on every host.
+
+Some reasons you may not want to do this are:
+- Significant effort
+- It won't be possible to do for all subaccount types, such as test/sandbox accounts. (Where requiring `iptables` and proxies is too heavy weight.)
+- Egress filtering (P2/P3) is further down the security maturity roadmap than preventing accidental Internet-exposure (P1). So coupling the two may not make strategic sense.
+- If something goes wrong on the host, the lost traffic will not appear in VPC flow logs [^98] or traffic mirroring logs.[^985] The DNS lookups will show up in Route53 query logs, but that's it.
+
+With that said, AWS does not have a primitive to perform Egress filtering [^99], and so you will have to implement Egress filtering via a proxy eventually. Therefore, in production accounts you may choose to go `peering -> proxy`. And for sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).
+
+
+[^98]: [Flow log limitations](https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html#flow-logs-limitations) does not state, "Internet-bound traffic sent to a peering connection" under `The following types of traffic are not logged:`. After testing I believe it should.
+
+[^985]: A peering connection cannot be selected as a [traffic mirror target](https://docs.aws.amazon.com/vpc/latest/mirroring/traffic-mirroring-targets.html).
+
+[^99]: It has AWS Network Firewall, which can be fooled via SNI spoofing. So it is at best a stepping stone to keep and inventory of your Egress traffic if you can't get a proxy up and running short-term.
 
 
 ### VPC Sharing
@@ -83,12 +115,6 @@ See
 >Scenario 5: VPC Sharing across multiple accounts
 
 from [Migrating accounts between AWS Organizations from a network perspective](https://aws.amazon.com/blogs/networking-and-content-delivery/migrating-accounts-between-aws-organizations-from-a-network-perspective/) for more information.
-
-
-### IPv6 for Egress
-
-You can do everything you normally do with IPv4, but 1
-
 
 ### Tradeoffs
 
@@ -144,7 +170,7 @@ For Sandbox accounts, this is not feasible.
 
 ## FAQ
 
-### Why is VPC peering not an option?
+### Why is VPC peering not a straightforward option?
 
 The short-answer is that, VPC peering is not transitive, so it is not designed for you to be able to 'hop' through an IGW via it. If you change your VPC route table to send Internet-destined traffic to a VPC peering connection, the traffic won't pass through it.
 
@@ -154,31 +180,13 @@ AWS lists this under [VPC peering limitations](https://docs.aws.amazon.com/vpc/l
 
 > - If VPC A has an NAT device that provides internet access to subnets in VPC A, resources in VPC B can't use the NAT device in VPC A to access the internet.
 
-A [longer explaination is](https://www.reddit.com/r/aws/comments/1625r2h/comment/jxxodvl):
+A [longer explanation is](https://www.reddit.com/r/aws/comments/1625r2h/comment/jxxodvl):
 
 > AWS has specific design principles and limitations in place for VPC peering to ensure security and network integrity. One of these limitations is that edge-to-edge routing is not supported over VPC peering connections. VPC connections are specifically designed to be non-transitive.
 
 >This means resources in one VPC cannot use an internet gateway or a NAT device in a peer VPC to access the internet. AWS does not propagate packets that are destined for the internet from one VPC to another over a peering connection, even if you try to configure NAT at the instance level.
 
 >The primary reason for this limitation is to maintain a clear network boundary and enforce security policies. If AWS allowed traffic from VPC B to egress to the internet through VPC A's NAT gateway, it would essentially make VPC A a transit VPC, which breaks the AWS design principle of VPC peering as a non-transitive relationship.
-
-With that said, if you are will to do a lot of heavy lifting that is orthogonal to AWS primitives, you _can_ use peering in combination with [Internet Egress Filtering](https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9), to accomplish centralized egress. This is because the destination IP is not the Internet, but the private IP of the proxy living in the peered VPC. Therefore it will happily pass through the peering connection. This is assuming you are deploying e.g. iptables to re-route Internet-destined traffic on every host.
-
-Some reasons you may not want to do this are:
-- Significant effort
-- It won't be possible to do for all subaccount types, such as test/sandbox accounts.
-- Egress filtering (P2/P3) is further down the security maturity roadmap than preventing accidental Internet-exposure (P1). So coupling the 2 may not make strategic sense.
-- If something goes wrong, the lost traffic will not appear in VPC flow logs [^98] or traffic mirroring logs.[^985] The DNS lookups will show up in Route53 query logs, but that's it. You will need full confidence in your iptables deployment or additional host/application monitoring.
-
-With that said, AWS does not have a primitive to perform Egress filtering [^99], and so you will have to implement Egress filtering via a proxy eventually. Therefore, in production accounts you may choose to go `peering -> proxy`. And for sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).
-
-[^98]: [Flow log limitations](https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html#flow-logs-limitations) does not state, "Internet-bound traffic sent to a peering connection" under `The following types of traffic are not logged:`. After testing I believe it should.
-
-[^985]: A peering connection cannot be selected as a [traffic mirror target](https://docs.aws.amazon.com/vpc/latest/mirroring/traffic-mirroring-targets.html).
-
-[^99]: It has AWS Network Firewall, which can be fooled via SNI spoofing. So it is at best a stepping stone to keep and inventory of your Egress traffic if you can't get a proxy up and running short-term.
-
-
 
 ### How do I access my machines if not public IP & IP whitelist, or DirectConnect->PrivateLink?
 
