@@ -93,14 +93,15 @@
   <li><a href="#preventing-by-design">Preventing by Design</a>
     <ul>
       <li><a href="#option-1-centralized-egress-via-transit-gateway-tgw">Option 1: Centralized Egress via Transit Gateway (TGW)</a></li>
-      <li><a href="#option-2-ipv6-for-egress">Option 2: IPv6 for Egress</a></li>
-      <li><a href="#option-3-centralized-egress-via-privatelink--vpc-peering-with-egress-filtering">Option 3: Centralized Egress via PrivateLink / VPC Peering with Egress Filtering</a></li>
-      <li><a href="#option-4-vpc-sharing">Option 4: VPC Sharing</a></li>
+      <li><a href="#option-2-centralized-egress-via-privatelink--vpc-peering-with-egress-filtering">Option 2: Centralized Egress via PrivateLink / VPC Peering with Egress Filtering</a></li>
+      <li><a href="#option-3-vpc-sharing">Option 3: VPC Sharing</a></li>
+      <li><a href="#option-4-ipv6-for-egress">Option 4: IPv6 for Egress</a></li>
       <li><a href="#tradeoffs">Tradeoffs</a></li>
     </ul>
   </li>
   <li><a href="#stopping-the-bleeding">Stopping The Bleeding</a>
     <ul>
+      <li><a href="#iam-protection-rings">IAM Protection Rings</a></li>
       <li><a href="#how-it-happens">How It Happens</a></li>
       <li><a href="#how-to-stop-it">How To Stop It</a></li>
     </ul>
@@ -168,7 +169,7 @@
 
 <p><img src="https://i.imgur.com/i65kHne.png" alt="alt text" /></p>
 
-<p>There are many ways to expose resources to the Internet like this, but the key insight is that they all require an Internet Gateway (IGW). <sup id="fnref:777" role="doc-noteref"><a href="#fn:777" class="footnote" rel="footnote">3</a></sup></p>
+<p>There are many ways to expose resources to the Internet like this, but the key insight is that they all require an Internet Gateway (IGW). [^777]</p>
 
 <h2 id="preventing-by-design">Preventing by Design</h2>
 
@@ -179,28 +180,28 @@
 
 <p>You can then, put accounts that were vended this way with the IGW-deny-SCP, in an OU and achieve <a href="#what-good-looks-like">What Good Looks Like</a> above.</p>
 
-<p>But what if you need to support the Egress use-case above? Then you have 4 good options.</p>
+<p>But what if you need to support the Egress use-case above? Then you have 4 possible options.</p>
 
 <h3 id="option-1-centralized-egress-via-transit-gateway-tgw">Option 1: Centralized Egress via Transit Gateway (TGW)</h3>
 
-<p>This is the most common way of implementing this, and probably the best. If money is no issue for you: go this route.</p>
+<p>This is the most common implemention, and probably the best. If money is no issue for you: go this route.</p>
 
 <p>It looks like this:</p>
 
 <p><img src="https://i.imgur.com/alRH2hN.png" alt="alt text" /></p>
 
-<p>AWS first wrote about this <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/creating-a-single-internet-exit-point-from-multiple-vpcs-using-aws-transit-gateway/">in 2019</a><sup id="fnref:5555" role="doc-noteref"><a href="#fn:5555" class="footnote" rel="footnote">4</a></sup> and lists it under their prescriptive guidance as <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/transitioning-to-multiple-aws-accounts/centralized-egress.html">Centralized Egress</a>.</p>
+<p>AWS first wrote about this <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/creating-a-single-internet-exit-point-from-multiple-vpcs-using-aws-transit-gateway/">in 2019</a><sup id="fnref:5555" role="doc-noteref"><a href="#fn:5555" class="footnote" rel="footnote">3</a></sup> and lists it under their prescriptive guidance as <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/transitioning-to-multiple-aws-accounts/centralized-egress.html">Centralized Egress</a>.</p>
 
 <p>As you can see, each VPC in a subaccount has a route table that has 0.0.0.0/0 destined traffic sent to a TGW in another account, where an IGW does live.</p>
 
 <h4 id="a-note-on-cost">A Note On Cost</h4>
 
-<p>This will likely save you money on NAT Gateways, which are one of – if not thee – most expensive networking components in AWS.</p>
+<p>This will save you money on NAT Gateways, which is arguably the most notoriously expensive networking component in AWS.</p>
 
 <p>On one hand, <a href="https://docs.aws.amazon.com/whitepapers/latest/building-scalable-secure-multi-vpc-network-infrastructure/centralized-egress-to-internet.html">AWS states</a>:</p>
 
 <blockquote>
-  <p>Deploying a NAT gateway in every spoke VPC can become cost prohibitive because you pay an hourly charge for every NAT gateway you deploy (refer to Amazon VPC pricing), so centralizing it could be a viable option.</p>
+  <p>Deploying a NAT gateway in every AZ of every spoke VPC can become cost prohibitive because you pay an hourly charge for every NAT gateway you deploy (refer to Amazon VPC pricing), so centralizing it could be a viable option.</p>
 </blockquote>
 
 <p>On the other hand, they also say:</p>
@@ -212,15 +213,7 @@
 <p>Sending huge amounts of data through a NAT Gateway should be avoided anyway.
 <a href="https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html">S3</a>, <a href="https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html">Splunk</a>, <a href="https://docs.honeycomb.io/integrations/aws/aws-privatelink/">Honeycomb</a> and similar companies have VPC endpoints you can utilize to lower NAT Gateway data processing charges.</p>
 
-<h3 id="option-2-ipv6-for-egress">Option 2: IPv6 for Egress</h3>
-
-<p>Remember how I said “in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet” above. For IPv6, that’s a lie.</p>
-
-<p>IPv6 addresses are globally unique, and therefore public by default. Due to this, AWS created the primitive of an <a href="https://docs.aws.amazon.com/vpc/latest/userguide/egress-only-internet-gateway.html">Egress-only Internet Gateway</a>,</p>
-
-<p>With this primitive, you are off to the races.</p>
-
-<h3 id="option-3-centralized-egress-via-privatelink--vpc-peering-with-egress-filtering">Option 3: Centralized Egress via PrivateLink / VPC Peering with Egress Filtering</h3>
+<h3 id="option-2-centralized-egress-via-privatelink--vpc-peering-with-egress-filtering">Option 2: Centralized Egress via PrivateLink / VPC Peering with Egress Filtering</h3>
 
 <p>VPC Peering or PrivateLink are mostly non-options. See the <a href="#why-is-vpc-peering-not-a-straightforward-option">FAQ</a> for more information.</p>
 
@@ -231,20 +224,20 @@
 <p>Some reasons you may not want to do this are:</p>
 <ul>
   <li>Significant effort</li>
-  <li>It won’t be possible to do for all subaccount types, such as test/sandbox accounts. (Where requiring <code class="language-plaintext highlighter-rouge">iptables</code> and a proxy is too heavy weight.)</li>
+  <li>It won’t be possible to do for all subaccount types, such as sandbox accounts. (Where requiring <code class="language-plaintext highlighter-rouge">iptables</code> and a proxy are too heavy weight.)</li>
   <li>Egress filtering (P2/P3) is further down the security maturity roadmap than preventing accidental Internet-exposure (P1). So tightly coupling the two, and needing to setup a proxy first, may not make strategic sense.</li>
-  <li>If something goes wrong on the host, the lost traffic will not appear in VPC flow logs <sup id="fnref:98" role="doc-noteref"><a href="#fn:98" class="footnote" rel="footnote">5</a></sup> or traffic mirroring logs.<sup id="fnref:985" role="doc-noteref"><a href="#fn:985" class="footnote" rel="footnote">6</a></sup> The DNS lookups will show up in Route53 query logs, but that’s it.</li>
+  <li>If something goes wrong on the host, the lost traffic will not appear in VPC flow logs <sup id="fnref:98" role="doc-noteref"><a href="#fn:98" class="footnote" rel="footnote">4</a></sup> or traffic mirroring logs.<sup id="fnref:985" role="doc-noteref"><a href="#fn:985" class="footnote" rel="footnote">5</a></sup> The DNS lookups will show up in Route53 query logs, but that’s it.</li>
 </ul>
 
-<p>With that said, AWS does not have a primitive to perform Egress filtering <sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">7</a></sup>, and so you will have to implement Egress filtering via a proxy eventually. Therefore, in production accounts you may choose to go with this option. And for sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).</p>
+<p>With that said, AWS does not have a primitive to perform Egress filtering <sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">6</a></sup>, and so you will have to implement Egress filtering via a proxy eventually. Therefore, in production accounts you may choose to go with this option. And for sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).</p>
 
 <p>Using PrivateLink, in this way, would look like this:</p>
 
 <p><img src="https://i.imgur.com/5Vh2SuX.png" alt="alt text" /></p>
 
-<h3 id="option-4-vpc-sharing">Option 4: VPC Sharing</h3>
+<h3 id="option-3-vpc-sharing">Option 3: VPC Sharing</h3>
 
-<p>This is the simplest option, and not well known.<sup id="fnref:996" role="doc-noteref"><a href="#fn:996" class="footnote" rel="footnote">8</a></sup></p>
+<p>This is the simplest option, and not well known.<sup id="fnref:996" role="doc-noteref"><a href="#fn:996" class="footnote" rel="footnote">7</a></sup></p>
 
 <p>You can simply make a VPC in your networking account, and share private subnets to subaccounts.</p>
 
@@ -271,11 +264,29 @@
 <p>from <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/migrating-accounts-between-aws-organizations-from-a-network-perspective/">Migrating accounts between AWS Organizations from a network perspective</a> by 
 Tedy Tirtawidjaja for more information.</p>
 
+<h3 id="option-4-ipv6-for-egress">Option 4: IPv6 for Egress</h3>
+
+<p>Remember how I said “in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet” above. For IPv6, that’s a lie.</p>
+
+<p>IPv6 addresses are globally unique, and therefore public by default. Due to this, AWS created the primitive of an <a href="https://docs.aws.amazon.com/vpc/latest/userguide/egress-only-internet-gateway.html">Egress-only Internet Gateway</a>,</p>
+
+<p>Unfortunately, with this primitive, there is no way to connect IPv4-only destinations, so if that is necessary, go with one of the other 3 options.</p>
+
+<p><img src="https://i.imgur.com/wtuaa71.png" alt="alt text" /></p>
+
+<h4 id="more-details-around-ipv4-only-destinations">More details around IPv4-only Destinations</h4>
+
+<p>As Sébastien Stormacq wrote in <a href="https://aws.amazon.com/blogs/aws/let-your-ipv6-only-workloads-connect-to-ipv4-services/">Let Your IPv6-only Workloads Connect to IPv4 Services</a>, you need only add a route table entry and set <code class="language-plaintext highlighter-rouge">--enable-dns64</code> on subnets to accomplish this – but you unfortunately still need an IGW.</p>
+
+<p>DNS queries made to the Amazon-provided DNS Resolver in subnets will then return synthetic IPv6 addresses for IPv4-only destinations with the well-known <code class="language-plaintext highlighter-rouge">64:ff9b::/96</code> prefix. And due to the route table entry, traffic with that prefix will be sent to the NAT Gateway.</p>
+
+<p>The problem is the NAT Gateway then needs an IGW to communicate with the destination, so one of the <a href="https://d1.awsstatic.com/architecture-diagrams/ArchitectureDiagrams/IPv6-reference-architectures-for-AWS-and-hybrid-networks-ra.pdf">other options</a> becomes necessary.</p>
+
 <h3 id="tradeoffs">Tradeoffs</h3>
 
 <p>My recommendation: Go with TGW, if you can’t do VPC Sharing. Once you are ready to implement Egress Filtering, have  assets use PrivateLink + Egress Filtering.</p>
 
-<p>IPv6-only probably won’t fly at your organization. But you know best.</p>
+<p>Being limited to IPv6-only destinations is likely unfeasible for your current or future use-cases, but you know best.</p>
 
 <p>The important thing is, no matter which direction your networking team wants to go in, this is doable.</p>
 
@@ -299,7 +310,7 @@ Tedy Tirtawidjaja for more information.</p>
     </tr>
     <tr>
       <td>Complexity*</td>
-      <td>Low</td>
+      <td>Medium</td>
       <td>Low</td>
       <td>Medium</td>
       <td><span style="color:red">High</span></td>
@@ -315,7 +326,7 @@ Tedy Tirtawidjaja for more information.</p>
       <td>Flexibility*</td>
       <td>High</td>
       <td>Medium</td>
-      <td><span style="color:red">Low</span></td>
+      <td><span style="color:red">Lowest</span></td>
       <td>High</td>
     </tr>
     <tr>
@@ -338,20 +349,141 @@ Tedy Tirtawidjaja for more information.</p>
 
 <p><img src="https://media.tenor.com/hGclJ34JeSIAAAAC/one-punch.gif" alt="alt text" /></p>
 
+<h3 id="iam-protection-rings">IAM Protection Rings</h3>
+
+<p>Think about your IAM roles as <a href="https://en.wikipedia.org/wiki/Protection_ring">privilege rings</a> in x86:</p>
+
+<p><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Priv_rings.svg/1350px-Priv_rings.svg.png" alt="drawing" width="500" /></p>
+
+<p>In AWS, rings 1 through 3 can be different types of IAM roles:</p>
+
+<ul>
+  <li>Ring 0 is SCPs</li>
+  <li>Ring 1 can make public facing resources</li>
+  <li>Ring 2 needs to e.g. create load balancers, but none of them should be Internet-facing.</li>
+  <li>Ring 3 needs to e.g. create EC2 instances, but none of them should be Internet-facing.</li>
+</ul>
+
+<p>With an SCP banning <code class="language-plaintext highlighter-rouge">ec2:CreateInternetGateway</code>, rings 1 through 3 cannot create Internet-facing assets no matter what, as ring 0 prevents them – but without this, we need to play IAM games.</p>
+
+<h4 id="supporting-ring-3-with-runinstances">Supporting Ring 3 with RunInstances</h4>
+
+<p>For Ring 3, we should be able to allow the role to call <code class="language-plaintext highlighter-rouge">ec2:RunInstances</code>, under the condition that <a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys"><code class="language-plaintext highlighter-rouge">ec2:AssociatePublicIpAddress</code></a> is <code class="language-plaintext highlighter-rouge">false</code>.</p>
+
+<p>Except that is insufficent: if the <a href="https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/run-instances.html">subnet given</a> has <a href="https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/modify-subnet-attribute.html#options"><code class="language-plaintext highlighter-rouge">"map-public-ip-on-launch"</code></a> set to true, the EC2 will get a public IP.</p>
+
+<p>So we need to allowlist the subnets that have that attribute set to false, adding the condition that <a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys"><code class="language-plaintext highlighter-rouge">ec2:SubnetID</code></a> equals an ID on the allowlist.</p>
+
+<p>Maintaining such a list of opaque IDs would be tedious, so in Terraform we can use a data source to grab them:</p>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">data</span> <span class="s">"aws_subnets"</span> <span class="s">"public"</span> <span class="p">{</span>
+ <span class="n">filter</span> <span class="p">{</span>
+   <span class="n">name</span> <span class="o">=</span> <span class="s">"map-public-ip-on-launch"</span>
+   <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="no">false</span><span class="p">]</span>
+ <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Except that is insufficient: as it does not list every subnet in every region.<sup id="fnref:1404" role="doc-noteref"><a href="#fn:1404" class="footnote" rel="footnote">8</a></sup></p>
+
+<p>So we need to write <a href="https://gist.github.com/MajinBuuOnSecurity/cb6b4689b47f555a2324c3f33da8e7eb#file-public_subnets-go-L172-L181">our own custom Terraform provider</a> to iterate through all regions.</p>
+
+<p>Finally we can create an <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document"><code class="language-plaintext highlighter-rouge">aws_iam_policy_document</code></a><sup id="fnref:1427" role="doc-noteref"><a href="#fn:1427" class="footnote" rel="footnote">9</a></sup> similar to the following abbreviated<sup id="fnref:1428" role="doc-noteref"><a href="#fn:1428" class="footnote" rel="footnote">10</a></sup> policy:</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">data</span> <span class="s">"private_subnets"</span> <span class="s">"subnets"</span> <span class="p">{</span>
+  <span class="n">regions</span> <span class="o">=</span> <span class="k">var</span><span class="o">.</span><span class="n">regions_in_use</span>
+<span class="p">}</span>
+
+<span class="n">data</span> <span class="s">"aws_iam_policy_document"</span> <span class="s">"allow_private_subnets"</span> <span class="p">{</span>
+  <span class="n">statement</span> <span class="p">{</span>
+    <span class="n">sid</span> <span class="o">=</span> <span class="s">"AllowSubnetConds"</span>
+
+    <span class="n">actions</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="s">"ec2:RunInstances"</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="n">effect</span> <span class="o">=</span> <span class="s">"Allow"</span>
+
+    <span class="n">resources</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="s">"arn:aws:ec2:*:*:subnet/*"</span>
+    <span class="p">]</span>
+
+    <span class="n">condition</span> <span class="p">{</span>
+      <span class="n">test</span>     <span class="o">=</span> <span class="s">"StringEquals"</span>
+      <span class="n">variable</span> <span class="o">=</span> <span class="s">"ec2:SubnetID"</span>
+
+      <span class="n">values</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">private_subnets</span><span class="o">.</span><span class="n">subnets</span><span class="o">.</span><span class="n">ids</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="n">statement</span> <span class="p">{</span>
+    <span class="n">sid</span> <span class="o">=</span> <span class="s">"AllowENIConds"</span>
+
+    <span class="n">actions</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="s">"ec2:RunInstances"</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="n">effect</span> <span class="o">=</span> <span class="s">"Allow"</span>
+
+    <span class="n">resources</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="s">"arn:aws:ec2:*:*:network-interface/*"</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="n">condition</span> <span class="p">{</span>
+      <span class="n">test</span>     <span class="o">=</span> <span class="s">"Bool"</span>
+      <span class="n">variable</span> <span class="o">=</span> <span class="s">"ec2:AssociatePublicIpAddress"</span>
+
+      <span class="n">values</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s">"false"</span><span class="p">,</span>
+      <span class="p">]</span>
+    <span class="p">}</span>
+
+    <span class="n">condition</span> <span class="p">{</span>
+      <span class="n">test</span>     <span class="o">=</span> <span class="s">"StringEquals"</span>
+      <span class="n">variable</span> <span class="o">=</span> <span class="s">"ec2:Subnet"</span>
+
+      <span class="n">values</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">private_subnets</span><span class="o">.</span><span class="n">subnets</span><span class="o">.</span><span class="n">arns</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now when someone in Ring 1 or 2 creates a new subnet, they can apply this dynamic policy as well so Ring 3 can automatically launch instances in it.</p>
+
+<p>This is  <font size="+2"><strong>one mole</strong></font> we just whacked. There are many others. This is What Bad Looks Like.</p>
+
 <h3 id="how-it-happens">How It Happens</h3>
+
+<p>Let’s see if we can list every possible mole than can sprint up.</p>
+
+<p>Creation of load balancer:</p>
+
+<p>…TODO…</p>
+
+<p>Creation of instance in public subnet:</p>
+
+<p>…TODO…</p>
+
+<p>Target group of load balancer</p>
 
 <p><img src="https://i.imgur.com/gyXZz2E.gif" alt="alt text" /></p>
 
-<ol>
-  <li>A VPC gets an Internet Gateway</li>
-  <li>A public-facing resource gets created
-    <ul>
-      <li>If it is an EC2, the instance needs to be in a public subnet. Or, if it was created via <code class="language-plaintext highlighter-rouge">ec2:RunInstances</code>, be given the <code class="language-plaintext highlighter-rouge">--associate-public-ip-address</code> option.</li>
-    </ul>
-  </li>
-  <li>(Optional) If the resource in 2 was an ELB, a lambda / IP / EC2 instance can be added as its targets.</li>
-  <li>(Optional) If the resource in 2 was an EIP, an ENI or EC2 instance can be associated with it.</li>
-</ol>
+<p>Lambda gets put as target</p>
+
+<p>…TODO…</p>
+
+<p>IP gets put as target</p>
+
+<p>…TODO…</p>
+
+<p>EIP gets associated with ENI</p>
+
+<p>…TODO…</p>
+
+<p>EIP gets associated with EC2</p>
+
+<p>…TODO…</p>
+
+<p>TODO: Can I edit the scheme of a load balancer? It doesn’t look like it, but I’ll try.</p>
 
 <h3 id="how-to-stop-it">How To Stop It</h3>
 
@@ -372,17 +504,21 @@ Tedy Tirtawidjaja for more information.</p>
 
 <h2 id="short-comings">Short comings</h2>
 
+<p>While it is true in almost all cases, that an Internet Gateway (IGW) is a prerequisite to expose an asset to the Internet, there are exceptions:</p>
+
 <ul>
-  <li><code class="language-plaintext highlighter-rouge">eks:CreateCluster</code></li>
-  <li><code class="language-plaintext highlighter-rouge">globalaccelerator:Create*</code></li>
-  <li>New IAM Actions</li>
+  <li><code class="language-plaintext highlighter-rouge">eks:CreateCluster</code> creates an Internet-facing assets in <em>another</em> AWS account, one that you do not own.</li>
+  <li><code class="language-plaintext highlighter-rouge">globalaccelerator:Create*</code> creates an accelerator which.. TODO</li>
+  <li>Future IAM Actions similar to the above</li>
 </ul>
 
-<p>For new IAM Services, you should have an allowlist strategy that limits the amount of AWS services you need to know in-depth.</p>
+<p>It is likely I missed some, let me know via email and I’ll update this.</p>
 
-<p>For Sandbox accounts, this is not feasible, so you will need to manually maintain a deny list of these IAM Actions.</p>
+<p>To be clear, I am not talking about messing up an IAM trust policy or a <a href="https://matthewdf10.medium.com/aws-accounts-as-security-boundaries-97-ways-data-can-be-shared-across-accounts-b933ce9c837e">resource-based policy</a> – only what could show up from doing traditional network scanning / searching Shodan.</p>
 
-<p>(Granted, you should be re-creating sandbox accounts [or less ideally, nuking] regularly and only have public data in them.)</p>
+<p>For most AWS accounts, you should have an allowlist strategy for IAM service prefixes, that limit the amount of AWS services you need to know in-depth, and help know which obscure services your engineers are using.</p>
+
+<p>For sandbox accounts, this is not feasible, so you will need to manually maintain a deny list of these IAM actions or services.<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">11</a></sup></p>
 
 <h2 id="faq">FAQ</h2>
 
@@ -436,6 +572,7 @@ Tedy Tirtawidjaja for more information.</p>
   <li>Are there no VPC flow logs for traffic that gets dropped due to a source/destination check on an ENI?</li>
   <li>If there are no VPC flow logs for traffic, there won’t be any possibility of mirroring that traffic either, right?</li>
   <li>Are there any other options for Egress that I missed?</li>
+  <li>Did I get anything wrong? I’m sure the Internet will let me know in spades.</li>
 </ul>
 
 <h2 id="conclusion">Conclusion</h2>
@@ -454,10 +591,7 @@ Tedy Tirtawidjaja for more information.</p>
       <p>See <a href="https://maia.crimew.gay/posts/how-to-hack-an-airline/">this post</a> for an example breach, one of many <a href="https://github.com/ramimac/aws-customer-security-incidents#background">AWS customer security incidents</a>. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:2" role="doc-endnote">
-      <p>New S3 buckets are private by default now, but being able to look at your AWS Org structure from a thousand-foot view and know which subtree can have public S3 buckets is invaluable. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:777" role="doc-endnote">
-      <p>Read the full post, particularly the <a href="#stopping-the-bleeding">Stopping The Bleeding</a> section, for more in-depth look. <a href="#fnref:777" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p><a href="https://aws.amazon.com/about-aws/whats-new/2022/12/amazon-s3-automatically-enable-block-public-access-disable-access-control-lists-buckets-april-2023/">New S3 buckets have Public Access Block by default now</a>, but being able to look at your AWS Org structure from a thousand-foot view and know which subtree can have public S3 buckets is invaluable. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:5555" role="doc-endnote">
       <p>Let me know if you find an earlier reference. <a href="#fnref:5555" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
@@ -469,10 +603,22 @@ Tedy Tirtawidjaja for more information.</p>
       <p>A peering connection cannot be selected as a <a href="https://docs.aws.amazon.com/vpc/latest/mirroring/traffic-mirroring-targets.html">traffic mirror source or target</a>, but a network interface can. However, only an ENI belonging to an EC2 instance can be a mirror source, not an ENI belonging to an Interface endpoint. The documentation doesn’t mention this anywhere I could find. <a href="#fnref:985" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:99" role="doc-endnote">
-      <p>It has AWS Network Firewall, which can be fooled via SNI spoofing. So it is at best a stepping stone to keep an inventory of your Egress traffic if you can’t get a proxy up and running short-term. <a href="#fnref:99" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>It has <a href="https://aws.amazon.com/network-firewall/faqs/">AWS Network Firewall</a>, which can be fooled via SNI spoofing. So it is at best a stepping stone to keep an inventory of your Egress traffic if you can’t get a proxy up and running short-term, and are not using TLS 1.3 with encrypted client hello (ECH) or encrypted SNI (ESNI).. <a href="#fnref:99" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:996" role="doc-endnote">
       <p>Shout out to <a href="https://awsteele.com/blog/2022/01/02/shared-vpcs-are-underrated.html">Aiden Steele</a> and <a href="https://sjramblings.io/unlock-the-hidden-power-of-vpc-sharing-in-aws">Stephen Jones</a> for writing their thoughts on VPC Sharing. <a href="#fnref:996" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:1404" role="doc-endnote">
+      <p>Even if it did, <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/subnets"><code class="language-plaintext highlighter-rouge">"aws_subnets"</code></a> is one of the <a href="https://github.com/hashicorp/terraform/issues/16380#issuecomment-418476841">better</a> data sources. <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/lb">aws_lb</a> and <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/lbs">aws_lbs</a> do not have filters, and the latter fails if there are none. <a href="#fnref:1404" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:1427" role="doc-endnote">
+      <p>See <a href="https://gist.github.com/MajinBuuOnSecurity/205273d308435f8d4a52759836aeb9e5">this gist</a> for a denylist example. <a href="#fnref:1427" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:1428" role="doc-endnote">
+      <p>If going with an allowlist approach, you also need statements that cover all other resource types (image, instance, security-group, volume etc.) for these actions. <a href="#fnref:1428" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:1424" role="doc-endnote">
+      <p>Granted, you should be seamlessly re-creating sandbox accounts [or less ideally, nuking] regularly and only have public data in them. <a href="#fnref:1424" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>

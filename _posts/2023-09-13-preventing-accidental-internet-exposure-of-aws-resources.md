@@ -17,7 +17,7 @@ In your multi-account AWS strategy, most accounts should have [account-wide publ
 
 When a public S3 bucket is needed, it should be made in a special `S3 Public Resources` account (under a separate OU) where only public S3 buckets can live.[^2]
 
-[^2]: New S3 buckets are private by default now, but being able to look at your AWS Org structure from a thousand-foot view and know which subtree can have public S3 buckets is invaluable.
+[^2]: [New S3 buckets have Public Access Block by default now](https://aws.amazon.com/about-aws/whats-new/2022/12/amazon-s3-automatically-enable-block-public-access-disable-access-control-lists-buckets-april-2023/), but being able to look at your AWS Org structure from a thousand-foot view and know which subtree can have public S3 buckets is invaluable.
 
 A simplified AWS organization structure supporting this is:
 
@@ -45,8 +45,6 @@ Or:
 
 There are many ways to expose resources to the Internet like this, but the key insight is that they all require an Internet Gateway (IGW). [^777]
 
-[^777]: Read the full post, particularly the [Stopping The Bleeding](#stopping-the-bleeding) section, for more in-depth look.
-
 ## Preventing by Design
 
 Since an IGW is the root of all of our problems, we simply can ban their creation via SCP 
@@ -56,11 +54,11 @@ That's it. Problem solved! You can hand the subaccount over to the customer, the
 
 You can then, put accounts that were vended this way with the IGW-deny-SCP, in an OU and achieve [What Good Looks Like](#what-good-looks-like) above.
 
-But what if you need to support the Egress use-case above? Then you have 4 good options.
+But what if you need to support the Egress use-case above? Then you have 4 possible options.
 
 ### Option 1: Centralized Egress via Transit Gateway (TGW)
 
-This is the most common way of implementing this, and probably the best. If money is no issue for you: go this route.
+This is the most common implemention, and probably the best. If money is no issue for you: go this route.
 
 It looks like this:
 
@@ -74,30 +72,20 @@ As you can see, each VPC in a subaccount has a route table that has 0.0.0.0/0 de
 
 #### A Note On Cost
 
-This will likely save you money on NAT Gateways, which are one of -- if not thee -- most expensive networking components in AWS.
+This will save you money on NAT Gateways, which is arguably the most notoriously expensive networking component in AWS.
 
 On one hand, [AWS states](https://docs.aws.amazon.com/whitepapers/latest/building-scalable-secure-multi-vpc-network-infrastructure/centralized-egress-to-internet.html):
 
->Deploying a NAT gateway in every spoke VPC can become cost prohibitive because you pay an hourly charge for every NAT gateway you deploy (refer to Amazon VPC pricing), so centralizing it could be a viable option. 
+>Deploying a NAT gateway in every AZ of every spoke VPC can become cost prohibitive because you pay an hourly charge for every NAT gateway you deploy (refer to Amazon VPC pricing), so centralizing it could be a viable option. 
 
 On the other hand, they also say:
 
 >In some edge cases when you send huge amounts of data through NAT gateway from a VPC, keeping the NAT local in the VPC to avoid the Transit Gateway data processing charge might be a more cost-effective option.
 
 Sending huge amounts of data through a NAT Gateway should be avoided anyway.
-[S3](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html), [Splunk](https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html), [Honeycomb](https://docs.honeycomb.io/integrations/aws/aws-privatelink/) and similar companies have VPC endpoints you can utilize to lower NAT Gateway data processing charges. 
+[S3](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html), [Splunk](https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html), [Honeycomb](https://docs.honeycomb.io/integrations/aws/aws-privatelink/) and similar companies have VPC endpoints you can utilize to lower NAT Gateway data processing charges.
 
-
-### Option 2: IPv6 for Egress
-
-Remember how I said "in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet" above. For IPv6, that's a lie.
-
-IPv6 addresses are globally unique, and therefore public by default. Due to this, AWS created the primitive of an [Egress-only Internet Gateway](https://docs.aws.amazon.com/vpc/latest/userguide/egress-only-internet-gateway.html), 
-
-With this primitive, you are off to the races.
-
-
-### Option 3: Centralized Egress via PrivateLink / VPC Peering with Egress Filtering
+### Option 2: Centralized Egress via PrivateLink / VPC Peering with Egress Filtering
 
 VPC Peering or PrivateLink are mostly non-options. See the [FAQ](#why-is-vpc-peering-not-a-straightforward-option) for more information.
 
@@ -107,7 +95,7 @@ This is assuming you are deploying e.g. iptables to re-route Internet-destined t
 
 Some reasons you may not want to do this are:
 - Significant effort
-- It won't be possible to do for all subaccount types, such as test/sandbox accounts. (Where requiring `iptables` and a proxy is too heavy weight.)
+- It won't be possible to do for all subaccount types, such as sandbox accounts. (Where requiring `iptables` and a proxy are too heavy weight.)
 - Egress filtering (P2/P3) is further down the security maturity roadmap than preventing accidental Internet-exposure (P1). So tightly coupling the two, and needing to setup a proxy first, may not make strategic sense.
 - If something goes wrong on the host, the lost traffic will not appear in VPC flow logs [^98] or traffic mirroring logs.[^985] The DNS lookups will show up in Route53 query logs, but that's it.
 
@@ -121,10 +109,10 @@ Using PrivateLink, in this way, would look like this:
 
 [^985]: A peering connection cannot be selected as a [traffic mirror source or target](https://docs.aws.amazon.com/vpc/latest/mirroring/traffic-mirroring-targets.html), but a network interface can. However, only an ENI belonging to an EC2 instance can be a mirror source, not an ENI belonging to an Interface endpoint. The documentation doesn't mention this anywhere I could find.
 
-[^99]: It has AWS Network Firewall, which can be fooled via SNI spoofing. So it is at best a stepping stone to keep an inventory of your Egress traffic if you can't get a proxy up and running short-term.
+[^99]: It has [AWS Network Firewall](https://aws.amazon.com/network-firewall/faqs/), which can be fooled via SNI spoofing. So it is at best a stepping stone to keep an inventory of your Egress traffic if you can't get a proxy up and running short-term, and are not using TLS 1.3 with encrypted client hello (ECH) or encrypted SNI (ESNI)..
 
 
-### Option 4: VPC Sharing
+### Option 3: VPC Sharing
 
 This is the simplest option, and not well known.[^996]
 
@@ -152,21 +140,38 @@ See
 from [Migrating accounts between AWS Organizations from a network perspective](https://aws.amazon.com/blogs/networking-and-content-delivery/migrating-accounts-between-aws-organizations-from-a-network-perspective/) by 
 Tedy Tirtawidjaja for more information.
 
+### Option 4: IPv6 for Egress
+
+Remember how I said "in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet" above. For IPv6, that's a lie.
+
+IPv6 addresses are globally unique, and therefore public by default. Due to this, AWS created the primitive of an [Egress-only Internet Gateway](https://docs.aws.amazon.com/vpc/latest/userguide/egress-only-internet-gateway.html), 
+
+Unfortunately, with this primitive, there is no way to connect IPv4-only destinations, so if that is necessary, go with one of the other 3 options.
+
+![alt text](https://i.imgur.com/wtuaa71.png)
+
+#### More details around IPv4-only Destinations
+
+As Sébastien Stormacq wrote in [Let Your IPv6-only Workloads Connect to IPv4 Services](https://aws.amazon.com/blogs/aws/let-your-ipv6-only-workloads-connect-to-ipv4-services/), you need only add a route table entry and set `--enable-dns64` on subnets to accomplish this -- but you unfortunately still need an IGW.
+
+DNS queries made to the Amazon-provided DNS Resolver in subnets will then return synthetic IPv6 addresses for IPv4-only destinations with the well-known `64:ff9b::/96` prefix. And due to the route table entry, traffic with that prefix will be sent to the NAT Gateway.
+
+The problem is the NAT Gateway then needs an IGW to communicate with the destination, so one of the [other options](https://d1.awsstatic.com/architecture-diagrams/ArchitectureDiagrams/IPv6-reference-architectures-for-AWS-and-hybrid-networks-ra.pdf) becomes necessary.
 
 ### Tradeoffs
 
 My recommendation: Go with TGW, if you can't do VPC Sharing. Once you are ready to implement Egress Filtering, have  assets use PrivateLink + Egress Filtering.
 
-IPv6-only probably won't fly at your organization. But you know best.
+Being limited to IPv6-only destinations is likely unfeasible for your current or future use-cases, but you know best.
 
 The important thing is, no matter which direction your networking team wants to go in, this is doable.
 
 Criteria                   | TGW                   | VPC Sharing           | IPv6-Only             | PrivateLink + Egress Filtering
 -------------------------- | --------------------- | --------------------- | --------------------- | ---------------------
 AWS Billing Cost           | <span style="color:red">Highest</span> | Lowest                              | Low                                | Medium
-Complexity*                | Low                                    | Low                                 | Medium                             | <span style="color:red">High</span>
+Complexity*                | Medium                                 | Low                                 | Medium                             | <span style="color:red">High</span>
 Scalability*               | High                                   | Low                                 | High                               | High
-Flexibility*               | High                                   | Medium                              | <span style="color:red">Low</span> | High
+Flexibility*               | High                                   | Medium                              | <span style="color:red">Lowest</span> | High
 Will Prevent Org Migration | False                                  | <span style="color:red">True</span> | False                              | False
 
 \* = YMMV
@@ -179,15 +184,148 @@ All hope is not lost, but you and I are going to need to play whack-a-mole toget
 
 ![alt text](https://media.tenor.com/hGclJ34JeSIAAAAC/one-punch.gif)
 
+### IAM Protection Rings
+
+Think about your IAM roles as [privilege rings](https://en.wikipedia.org/wiki/Protection_ring) in x86:
+
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Priv_rings.svg/1350px-Priv_rings.svg.png" alt="drawing" width="500"/>
+
+In AWS, rings 1 through 3 can be different types of IAM roles:
+
+- Ring 0 is SCPs
+- Ring 1 can make public facing resources
+- Ring 2 needs to e.g. create load balancers, but none of them should be Internet-facing.
+- Ring 3 needs to e.g. create EC2 instances, but none of them should be Internet-facing.
+
+With an SCP banning `ec2:CreateInternetGateway`, rings 1 through 3 cannot create Internet-facing assets no matter what, as ring 0 prevents them -- but without this, we need to play IAM games.
+
+#### Supporting Ring 3 with RunInstances
+
+For Ring 3, we should be able to allow the role to call `ec2:RunInstances`, under the condition that [`ec2:AssociatePublicIpAddress`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys) is `false`. 
+
+Except that is insufficent: if the [subnet given](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/run-instances.html) has [`"map-public-ip-on-launch"`](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/modify-subnet-attribute.html#options) set to true, the EC2 will get a public IP.
+
+So we need to allowlist the subnets that have that attribute set to false, adding the condition that [`ec2:SubnetID`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys) equals an ID on the allowlist.
+
+Maintaining such a list of opaque IDs would be tedious, so in Terraform we can use a data source to grab them:
+```go
+data "aws_subnets" "public" {
+ filter {
+   name = "map-public-ip-on-launch"
+   values = [false]
+ }
+}
+```
+
+Except that is insufficient: as it does not list every subnet in every region.[^1404]
+
+So we need to write [our own custom Terraform provider](https://gist.github.com/MajinBuuOnSecurity/cb6b4689b47f555a2324c3f33da8e7eb#file-public_subnets-go-L172-L181) to iterate through all regions.
+
+[^1404]: Even if it did, [`"aws_subnets"`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/subnets) is one of the [better](https://github.com/hashicorp/terraform/issues/16380#issuecomment-418476841) data sources. [aws_lb](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/lb) and [aws_lbs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/lbs) do not have filters, and the latter fails if there are none.
+
+Finally we can create an [`aws_iam_policy_document`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)[^1427] similar to the following abbreviated[^1428] policy:
+
+[^1427]: See [this gist](https://gist.github.com/MajinBuuOnSecurity/205273d308435f8d4a52759836aeb9e5) for a denylist example.
+[^1428]: If going with an allowlist approach, you also need statements that cover all other resource types (image, instance, security-group, volume etc.) for these actions. 
+
+
+```go
+data "private_subnets" "subnets" {
+  regions = var.regions_in_use
+}
+
+data "aws_iam_policy_document" "allow_private_subnets" {
+  statement {
+    sid = "AllowSubnetConds"
+
+    actions = [
+      "ec2:RunInstances",
+    ]
+
+    effect = "Allow"
+
+    resources = [
+      "arn:aws:ec2:*:*:subnet/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:SubnetID"
+
+      values = data.private_subnets.subnets.ids
+    }
+  }
+
+  statement {
+    sid = "AllowENIConds"
+
+    actions = [
+      "ec2:RunInstances",
+    ]
+
+    effect = "Allow"
+
+    resources = [
+      "arn:aws:ec2:*:*:network-interface/*",
+    ]
+
+    condition {
+      test     = "Bool"
+      variable = "ec2:AssociatePublicIpAddress"
+
+      values = [
+        "false",
+      ]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:Subnet"
+
+      values = data.private_subnets.subnets.arns
+    }
+  }
+}
+```
+
+Now when someone in Ring 1 or 2 creates a new subnet, they can apply this dynamic policy as well so Ring 3 can automatically launch instances in it.
+
+This is  <font size="+2"><strong>one mole</strong></font> we just whacked. There are many others. This is What Bad Looks Like.
+
 ### How It Happens
+
+Let's see if we can list every possible mole than can sprint up.
+
+Creation of load balancer:
+
+...TODO...
+
+Creation of instance in public subnet:
+
+...TODO...
+
+Target group of load balancer
 
 ![alt text](https://i.imgur.com/gyXZz2E.gif)
 
-1. A VPC gets an Internet Gateway
-2. A public-facing resource gets created
-	- If it is an EC2, the instance needs to be in a public subnet. Or, if it was created via `ec2:RunInstances`, be given the `--associate-public-ip-address` option.
-3. (Optional) If the resource in 2 was an ELB, a lambda / IP / EC2 instance can be added as its targets.
-4. (Optional) If the resource in 2 was an EIP, an ENI or EC2 instance can be associated with it.
+Lambda gets put as target
+
+...TODO...
+
+IP gets put as target
+
+...TODO...
+
+EIP gets associated with ENI
+
+...TODO...
+
+EIP gets associated with EC2
+
+...TODO...
+
+
+TODO: Can I edit the scheme of a load balancer? It doesn't look like it, but I'll try.
 
 ### How To Stop It
 
@@ -206,15 +344,22 @@ Banning IAM Actions Conditionally
 
 ## Short comings
 
-- `eks:CreateCluster`
-- `globalaccelerator:Create*`
-- New IAM Actions
+While it is true in almost all cases, that an Internet Gateway (IGW) is a prerequisite to expose an asset to the Internet, there are exceptions:
 
-For new IAM Services, you should have an allowlist strategy that limits the amount of AWS services you need to know in-depth.
+- `eks:CreateCluster` creates an Internet-facing assets in _another_ AWS account, one that you do not own.
+- `globalaccelerator:Create*` creates an accelerator which.. TODO
+- Future IAM Actions similar to the above
 
-For Sandbox accounts, this is not feasible, so you will need to manually maintain a deny list of these IAM Actions. 
+It is likely I missed some, let me know via email and I'll update this.
 
-(Granted, you should be re-creating sandbox accounts [or less ideally, nuking] regularly and only have public data in them.)
+To be clear, I am not talking about messing up an IAM trust policy or a [resource-based policy](https://matthewdf10.medium.com/aws-accounts-as-security-boundaries-97-ways-data-can-be-shared-across-accounts-b933ce9c837e) -- only what could show up from doing traditional network scanning / searching Shodan. 
+
+For most AWS accounts, you should have an allowlist strategy for IAM service prefixes, that limit the amount of AWS services you need to know in-depth, and help know which obscure services your engineers are using.
+
+For sandbox accounts, this is not feasible, so you will need to manually maintain a deny list of these IAM actions or services.[^1424]
+
+
+[^1424]: Granted, you should be seamlessly re-creating sandbox accounts [or less ideally, nuking] regularly and only have public data in them.
 
 ## FAQ
 
@@ -254,6 +399,7 @@ Use [SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-m
 - Are there no VPC flow logs for traffic that gets dropped due to a source/destination check on an ENI?
 - If there are no VPC flow logs for traffic, there won't be any possibility of mirroring that traffic either, right?
 - Are there any other options for Egress that I missed?
+- Did I get anything wrong? I'm sure the Internet will let me know in spades.
 
 ## Conclusion
 
