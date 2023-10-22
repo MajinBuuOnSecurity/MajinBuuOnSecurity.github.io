@@ -184,7 +184,7 @@
 
 <h3 id="option-1-centralized-egress-via-transit-gateway-tgw">Option 1: Centralized Egress via Transit Gateway (TGW)</h3>
 
-<p>This is the most common implemention, and probably the best. If money is no issue for you: go this route.</p>
+<p>This is the most common implementation, and probably the best. If money is no issue for you: go this route.</p>
 
 <p>It looks like this:</p>
 
@@ -201,13 +201,13 @@
 <p>On one hand, <a href="https://docs.aws.amazon.com/whitepapers/latest/building-scalable-secure-multi-vpc-network-infrastructure/centralized-egress-to-internet.html">AWS states</a>:</p>
 
 <blockquote>
-  <p>Deploying a NAT gateway in every AZ of every spoke VPC can become cost prohibitive because you pay an hourly charge for every NAT gateway you deploy (refer to Amazon VPC pricing), so centralizing it could be a viable option.</p>
+  <p>Deploying a NAT gateway in every AZ of every spoke VPC can become cost prohibitive because you pay an hourly charge for every NAT gateway you deploy, so centralizing it could be a viable option.</p>
 </blockquote>
 
 <p>On the other hand, they also say:</p>
 
 <blockquote>
-  <p>In some edge cases when you send huge amounts of data through NAT gateway from a VPC, keeping the NAT local in the VPC to avoid the Transit Gateway data processing charge might be a more cost-effective option.</p>
+  <p>In some edge cases when you send huge amounts of data through a NAT gateway from a VPC, keeping the NAT local in the VPC to avoid the Transit Gateway data processing charge might be a more cost-effective option.</p>
 </blockquote>
 
 <p>Sending huge amounts of data through a NAT Gateway should be avoided anyway.
@@ -345,7 +345,7 @@ Tedy Tirtawidjaja for more information.</p>
 
 <p>What if you have a giant monolithic account with a mix of private and public assets, that you didn’t apply these design principles to?</p>
 
-<p>All hope is not lost, but you and I are going to need to play whack-a-mole together.</p>
+<p>All hope is not lost, but you and I are going to need to play <a href="https://www.youtube.com/watch?v=iqihTaHblzM">whack-a-mole</a> together.</p>
 
 <p><img src="https://media.tenor.com/hGclJ34JeSIAAAAC/one-punch.gif" alt="alt text" /></p>
 
@@ -370,7 +370,7 @@ Tedy Tirtawidjaja for more information.</p>
 
 <p>For Ring 3, we should be able to allow the role to call <code class="language-plaintext highlighter-rouge">ec2:RunInstances</code>, under the condition that <a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys"><code class="language-plaintext highlighter-rouge">ec2:AssociatePublicIpAddress</code></a> is <code class="language-plaintext highlighter-rouge">false</code>.</p>
 
-<p>Except that is insufficent: if the <a href="https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/run-instances.html">subnet given</a> has <a href="https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/modify-subnet-attribute.html#options"><code class="language-plaintext highlighter-rouge">"map-public-ip-on-launch"</code></a> set to true, the EC2 will get a public IP.</p>
+<p>Except that is insufficient: if the <a href="https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/run-instances.html">subnet given</a> has <a href="https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/modify-subnet-attribute.html#options"><code class="language-plaintext highlighter-rouge">"map-public-ip-on-launch"</code></a> set to true, the EC2 will get a public IP.</p>
 
 <p>So we need to allowlist the subnets that have that attribute set to false, by adding the condition that <a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys"><code class="language-plaintext highlighter-rouge">ec2:SubnetID</code></a> equals an ID on the allowlist.</p>
 
@@ -526,7 +526,7 @@ Tedy Tirtawidjaja for more information.</p>
 
 <h3 id="why-is-vpc-peering-not-a-straightforward-option">Why is VPC peering not a straightforward option?</h3>
 
-<p>The short-answer is that, VPC peering is not transitive, so it is not designed for you to be able to ‘hop’ through an IGW via it. If you change your VPC route table to send Internet-destined traffic to a VPC peering connection, the traffic won’t pass through it.</p>
+<p>The short-answer is that VPC peering is not transitive, so it is not designed for you to be able to ‘hop’ through an IGW via it. If you change your VPC route table to send Internet-destined traffic to a VPC peering connection, the traffic won’t pass through it.</p>
 
 <p>AWS lists this under <a href="https://docs.aws.amazon.com/vpc/latest/peering/vpc-peering-basics.html#vpc-peering-limitations">VPC peering limitations</a>:</p>
 
@@ -538,7 +538,7 @@ Tedy Tirtawidjaja for more information.</p>
 
 <blockquote>
   <ul>
-    <li>If VPC A has an NAT device that provides Internet access to subnets in VPC A, resources in VPC B can’t use the NAT device in VPC A to access the Internet.</li>
+    <li>If VPC A has a NAT device that provides Internet access to subnets in VPC A, resources in VPC B can’t use the NAT device in VPC A to access the Internet.</li>
   </ul>
 </blockquote>
 

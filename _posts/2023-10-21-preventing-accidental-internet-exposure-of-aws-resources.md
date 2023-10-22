@@ -58,7 +58,7 @@ But what if you need to support the Egress use-case above? Then you have 4 possi
 
 ### Option 1: Centralized Egress via Transit Gateway (TGW)
 
-This is the most common implemention, and probably the best. If money is no issue for you: go this route.
+This is the most common implementation, and probably the best. If money is no issue for you: go this route.
 
 It looks like this:
 
@@ -76,11 +76,11 @@ This will save you money on NAT Gateways, which is arguably the most notoriously
 
 On one hand, [AWS states](https://docs.aws.amazon.com/whitepapers/latest/building-scalable-secure-multi-vpc-network-infrastructure/centralized-egress-to-internet.html):
 
->Deploying a NAT gateway in every AZ of every spoke VPC can become cost prohibitive because you pay an hourly charge for every NAT gateway you deploy (refer to Amazon VPC pricing), so centralizing it could be a viable option. 
+>Deploying a NAT gateway in every AZ of every spoke VPC can become cost prohibitive because you pay an hourly charge for every NAT gateway you deploy, so centralizing it could be a viable option.
 
 On the other hand, they also say:
 
->In some edge cases when you send huge amounts of data through NAT gateway from a VPC, keeping the NAT local in the VPC to avoid the Transit Gateway data processing charge might be a more cost-effective option.
+>In some edge cases when you send huge amounts of data through a NAT gateway from a VPC, keeping the NAT local in the VPC to avoid the Transit Gateway data processing charge might be a more cost-effective option.
 
 Sending huge amounts of data through a NAT Gateway should be avoided anyway.
 [S3](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html), [Splunk](https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html), [Honeycomb](https://docs.honeycomb.io/integrations/aws/aws-privatelink/) and similar companies have VPC endpoints you can utilize to lower NAT Gateway data processing charges.
@@ -180,7 +180,7 @@ Will Prevent Org Migration | False                                  | <span styl
 
 What if you have a giant monolithic account with a mix of private and public assets, that you didn't apply these design principles to?
 
-All hope is not lost, but you and I are going to need to play whack-a-mole together.
+All hope is not lost, but you and I are going to need to play [whack-a-mole](https://www.youtube.com/watch?v=iqihTaHblzM) together.
 
 ![alt text](https://media.tenor.com/hGclJ34JeSIAAAAC/one-punch.gif)
 
@@ -203,7 +203,7 @@ With an SCP banning `ec2:CreateInternetGateway`, rings 1 through 3 cannot create
 
 For Ring 3, we should be able to allow the role to call `ec2:RunInstances`, under the condition that [`ec2:AssociatePublicIpAddress`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys) is `false`. 
 
-Except that is insufficent: if the [subnet given](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/run-instances.html) has [`"map-public-ip-on-launch"`](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/modify-subnet-attribute.html#options) set to true, the EC2 will get a public IP.
+Except that is insufficient: if the [subnet given](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/run-instances.html) has [`"map-public-ip-on-launch"`](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/modify-subnet-attribute.html#options) set to true, the EC2 will get a public IP.
 
 So we need to allowlist the subnets that have that attribute set to false, by adding the condition that [`ec2:SubnetID`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys) equals an ID on the allowlist.
 
@@ -371,13 +371,13 @@ For sandbox accounts, this is not feasible, so you will need to manually maintai
 
 ### Why is VPC peering not a straightforward option?
 
-The short-answer is that, VPC peering is not transitive, so it is not designed for you to be able to 'hop' through an IGW via it. If you change your VPC route table to send Internet-destined traffic to a VPC peering connection, the traffic won't pass through it.
+The short-answer is that VPC peering is not transitive, so it is not designed for you to be able to 'hop' through an IGW via it. If you change your VPC route table to send Internet-destined traffic to a VPC peering connection, the traffic won't pass through it.
 
 AWS lists this under [VPC peering limitations](https://docs.aws.amazon.com/vpc/latest/peering/vpc-peering-basics.html#vpc-peering-limitations):
 
 > - If VPC A has an internet gateway, resources in VPC B can't use the internet gateway in VPC A to access the Internet.
 
-> - If VPC A has an NAT device that provides Internet access to subnets in VPC A, resources in VPC B can't use the NAT device in VPC A to access the Internet.
+> - If VPC A has a NAT device that provides Internet access to subnets in VPC A, resources in VPC B can't use the NAT device in VPC A to access the Internet.
 
 A [longer explanation is](https://www.reddit.com/r/aws/comments/1625r2h/comment/jxxodvl):
 
