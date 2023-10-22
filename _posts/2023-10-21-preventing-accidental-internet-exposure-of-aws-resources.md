@@ -205,7 +205,7 @@ For Ring 3, we should be able to allow the role to call `ec2:RunInstances`, unde
 
 Except that is insufficent: if the [subnet given](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/run-instances.html) has [`"map-public-ip-on-launch"`](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/modify-subnet-attribute.html#options) set to true, the EC2 will get a public IP.
 
-So we need to allowlist the subnets that have that attribute set to false, adding the condition that [`ec2:SubnetID`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys) equals an ID on the allowlist.
+So we need to allowlist the subnets that have that attribute set to false, by adding the condition that [`ec2:SubnetID`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys) equals an ID on the allowlist.
 
 Maintaining such a list of opaque IDs would be tedious, so in Terraform we can use a data source to grab them:
 ```go
@@ -217,7 +217,7 @@ data "aws_subnets" "public" {
 }
 ```
 
-Except that is insufficient: as it does not list every subnet in every region.[^1404]
+Except that is insufficient: as it does not read from every region.[^1404]
 
 So we need to write [our own custom Terraform provider](https://gist.github.com/MajinBuuOnSecurity/cb6b4689b47f555a2324c3f33da8e7eb#file-public_subnets-go-L172-L181) to iterate through all regions.
 
@@ -294,7 +294,7 @@ This is  <font size="+2"><strong>one mole</strong></font> we just whacked. There
 
 ### How It Happens
 
-Let's see if we can list every possible mole than can pop up.
+Let's see if we can list every possible mole that can pop up.
 
 Creation of load balancer:
 
@@ -344,14 +344,17 @@ Banning IAM Actions Conditionally
 
 ## Short comings
 
-While it is true in almost all cases, that an Internet Gateway (IGW) is a prerequisite to expose an asset to the Internet, there are exceptions:
+While it is true in almost all cases, that an Internet Gateway (IGW) is a prerequisite to expose an asset to the Internet, there is one exception I am aware of.
 
-- `eks:CreateCluster` creates an Internet-facing assets in _another_ AWS account, one that you do not own.
-- Future IAM Actions similar to the above
+`eks:CreateCluster` creates a public Kubernetes API endpoint in _another_ AWS account, one that you do not own.
 
-For global accelerator, you still need a [symbolic IGW in the VPC](https://aws.amazon.com/blogs/networking-and-content-delivery/accessing-private-application-load-balancers-and-instances-through-aws-global-accelerator/), so I did not include it here.
+Although the API requires an authorized token to perform sensitive actions, it can still be hit by the Internet and does not need an IGW.
+
+I do not know of any other API calls like this.
 
 It is likely I missed some, let me know via email and I'll update this.
+
+For global accelerator, you still need a [symbolic IGW in the VPC](https://aws.amazon.com/blogs/networking-and-content-delivery/accessing-private-application-load-balancers-and-instances-through-aws-global-accelerator/), so I did not include it here.
 
 To be clear, I am not talking about messing up an IAM trust policy or a [resource-based policy](https://matthewdf10.medium.com/aws-accounts-as-security-boundaries-97-ways-data-can-be-shared-across-accounts-b933ce9c837e) -- only what could show up from doing traditional network scanning / searching Shodan. 
 

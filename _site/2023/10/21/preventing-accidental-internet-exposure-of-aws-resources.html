@@ -372,7 +372,7 @@ Tedy Tirtawidjaja for more information.</p>
 
 <p>Except that is insufficent: if the <a href="https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/run-instances.html">subnet given</a> has <a href="https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/modify-subnet-attribute.html#options"><code class="language-plaintext highlighter-rouge">"map-public-ip-on-launch"</code></a> set to true, the EC2 will get a public IP.</p>
 
-<p>So we need to allowlist the subnets that have that attribute set to false, adding the condition that <a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys"><code class="language-plaintext highlighter-rouge">ec2:SubnetID</code></a> equals an ID on the allowlist.</p>
+<p>So we need to allowlist the subnets that have that attribute set to false, by adding the condition that <a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys"><code class="language-plaintext highlighter-rouge">ec2:SubnetID</code></a> equals an ID on the allowlist.</p>
 
 <p>Maintaining such a list of opaque IDs would be tedious, so in Terraform we can use a data source to grab them:</p>
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">data</span> <span class="s">"aws_subnets"</span> <span class="s">"public"</span> <span class="p">{</span>
@@ -383,7 +383,7 @@ Tedy Tirtawidjaja for more information.</p>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>Except that is insufficient: as it does not list every subnet in every region.<sup id="fnref:1404" role="doc-noteref"><a href="#fn:1404" class="footnote" rel="footnote">8</a></sup></p>
+<p>Except that is insufficient: as it does not read from every region.<sup id="fnref:1404" role="doc-noteref"><a href="#fn:1404" class="footnote" rel="footnote">8</a></sup></p>
 
 <p>So we need to write <a href="https://gist.github.com/MajinBuuOnSecurity/cb6b4689b47f555a2324c3f33da8e7eb#file-public_subnets-go-L172-L181">our own custom Terraform provider</a> to iterate through all regions.</p>
 
@@ -453,7 +453,7 @@ Tedy Tirtawidjaja for more information.</p>
 
 <h3 id="how-it-happens">How It Happens</h3>
 
-<p>Let’s see if we can list every possible mole than can pop up.</p>
+<p>Let’s see if we can list every possible mole that can pop up.</p>
 
 <p>Creation of load balancer:</p>
 
@@ -504,16 +504,17 @@ Tedy Tirtawidjaja for more information.</p>
 
 <h2 id="short-comings">Short comings</h2>
 
-<p>While it is true in almost all cases, that an Internet Gateway (IGW) is a prerequisite to expose an asset to the Internet, there are exceptions:</p>
+<p>While it is true in almost all cases, that an Internet Gateway (IGW) is a prerequisite to expose an asset to the Internet, there is one exception I am aware of.</p>
 
-<ul>
-  <li><code class="language-plaintext highlighter-rouge">eks:CreateCluster</code> creates an Internet-facing assets in <em>another</em> AWS account, one that you do not own.</li>
-  <li>Future IAM Actions similar to the above</li>
-</ul>
+<p><code class="language-plaintext highlighter-rouge">eks:CreateCluster</code> creates a public Kubernetes API endpoint in <em>another</em> AWS account, one that you do not own.</p>
 
-<p>For global accelerator, you still need a <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/accessing-private-application-load-balancers-and-instances-through-aws-global-accelerator/">symbolic IGW in the VPC</a>, so I did not include it here.</p>
+<p>Although the API requires an authorized token to perform sensitive actions, it can still be hit by the Internet and does not need an IGW.</p>
+
+<p>I do not know of any other API calls like this.</p>
 
 <p>It is likely I missed some, let me know via email and I’ll update this.</p>
+
+<p>For global accelerator, you still need a <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/accessing-private-application-load-balancers-and-instances-through-aws-global-accelerator/">symbolic IGW in the VPC</a>, so I did not include it here.</p>
 
 <p>To be clear, I am not talking about messing up an IAM trust policy or a <a href="https://matthewdf10.medium.com/aws-accounts-as-security-boundaries-97-ways-data-can-be-shared-across-accounts-b933ce9c837e">resource-based policy</a> – only what could show up from doing traditional network scanning / searching Shodan.</p>
 
