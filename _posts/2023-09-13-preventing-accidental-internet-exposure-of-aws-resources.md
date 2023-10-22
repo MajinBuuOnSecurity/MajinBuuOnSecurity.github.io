@@ -43,7 +43,7 @@ Or:
 
 ![alt text](https://i.imgur.com/i65kHne.png)
 
-There are many ways to expose resources to the Internet like this, but the key insight is that they all require an Internet Gateway (IGW). [^777]
+There are many ways to expose resources to the Internet like this, but the key insight is that they all require an Internet Gateway (IGW).
 
 ## Preventing by Design
 
@@ -164,7 +164,7 @@ My recommendation: Go with TGW, if you can't do VPC Sharing. Once you are ready 
 
 Being limited to IPv6-only destinations is likely unfeasible for your current or future use-cases, but you know best.
 
-The important thing is, no matter which direction your networking team wants to go in, this is doable.
+The important thing is, no matter which direction your networking team wants to go in, you can ban IGWs.
 
 Criteria                   | TGW                   | VPC Sharing           | IPv6-Only             | PrivateLink + Egress Filtering
 -------------------------- | --------------------- | --------------------- | --------------------- | ---------------------
@@ -294,7 +294,7 @@ This is  <font size="+2"><strong>one mole</strong></font> we just whacked. There
 
 ### How It Happens
 
-Let's see if we can list every possible mole than can sprint up.
+Let's see if we can list every possible mole than can pop up.
 
 Creation of load balancer:
 
