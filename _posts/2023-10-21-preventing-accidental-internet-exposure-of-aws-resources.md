@@ -348,7 +348,9 @@ While it is true in almost all cases, that an Internet Gateway (IGW) is a prereq
 
 `eks:CreateCluster` creates a public Kubernetes API endpoint in _another_ AWS account, one that you do not own.
 
-Although the API requires an authorized token to perform sensitive actions, it can still be hit by the Internet and does not need an IGW.
+Although by default the API requires an authorized token to perform sensitive actions[^777], it can still be hit by the Internet and does not need an IGW.
+
+[^777]: By default only the `system:public-info-viewer` cluster role provides access to a set of endpoints for the `system:unauthenticated` group. These endpoints (e.g. `/healthz`, `/livez`, `/readyz`, and `/version`) are [used by Network Load Balancers to perform health checks](https://aws.amazon.com/blogs/security/how-to-use-new-amazon-guardduty-eks-protection-findings/).
 
 I do not know of any other API calls like this.
 

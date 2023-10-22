@@ -508,7 +508,7 @@ Tedy Tirtawidjaja for more information.</p>
 
 <p><code class="language-plaintext highlighter-rouge">eks:CreateCluster</code> creates a public Kubernetes API endpoint in <em>another</em> AWS account, one that you do not own.</p>
 
-<p>Although the API requires an authorized token to perform sensitive actions, it can still be hit by the Internet and does not need an IGW.</p>
+<p>Although by default the API requires an authorized token to perform sensitive actions<sup id="fnref:777" role="doc-noteref"><a href="#fn:777" class="footnote" rel="footnote">11</a></sup>, it can still be hit by the Internet and does not need an IGW.</p>
 
 <p>I do not know of any other API calls like this.</p>
 
@@ -520,7 +520,7 @@ Tedy Tirtawidjaja for more information.</p>
 
 <p>For most AWS accounts, you should have an allowlist strategy for IAM service prefixes, that limit the amount of AWS services you need to know in-depth, and help know which obscure services your engineers are using.</p>
 
-<p>For sandbox accounts, this is not feasible, so you will need to manually maintain a deny list of these IAM actions or services.<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">11</a></sup></p>
+<p>For sandbox accounts, this is not feasible, so you will need to manually maintain a deny list of these IAM actions or services.<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">12</a></sup></p>
 
 <h2 id="faq">FAQ</h2>
 
@@ -618,6 +618,9 @@ Tedy Tirtawidjaja for more information.</p>
     </li>
     <li id="fn:1428" role="doc-endnote">
       <p>If going with an allowlist approach, you also need statements that cover all other resource types (image, instance, security-group, volume etc.) for these actions. <a href="#fnref:1428" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:777" role="doc-endnote">
+      <p>By default only the <code class="language-plaintext highlighter-rouge">system:public-info-viewer</code> cluster role provides access to a set of endpoints for the <code class="language-plaintext highlighter-rouge">system:unauthenticated</code> group. These endpoints (e.g. <code class="language-plaintext highlighter-rouge">/healthz</code>, <code class="language-plaintext highlighter-rouge">/livez</code>, <code class="language-plaintext highlighter-rouge">/readyz</code>, and <code class="language-plaintext highlighter-rouge">/version</code>) are <a href="https://aws.amazon.com/blogs/security/how-to-use-new-amazon-guardduty-eks-protection-findings/">used by Network Load Balancers to perform health checks</a>. <a href="#fnref:777" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:1424" role="doc-endnote">
       <p>Granted, you should be seamlessly re-creating sandbox accounts [or less ideally, nuking] regularly and only have public data in them. <a href="#fnref:1424" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
