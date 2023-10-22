@@ -347,8 +347,9 @@ Banning IAM Actions Conditionally
 While it is true in almost all cases, that an Internet Gateway (IGW) is a prerequisite to expose an asset to the Internet, there are exceptions:
 
 - `eks:CreateCluster` creates an Internet-facing assets in _another_ AWS account, one that you do not own.
-- `globalaccelerator:Create*` creates an accelerator which.. TODO
 - Future IAM Actions similar to the above
+
+For global accelerator, you still need a [symbolic IGW in the VPC](https://aws.amazon.com/blogs/networking-and-content-delivery/accessing-private-application-load-balancers-and-instances-through-aws-global-accelerator/), so I did not include it here.
 
 It is likely I missed some, let me know via email and I'll update this.
 
