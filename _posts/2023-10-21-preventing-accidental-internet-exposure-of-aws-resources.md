@@ -221,12 +221,12 @@ Except that is insufficient: as it does not read from every region.[^1404]
 
 So we need to write [our own custom Terraform provider](https://gist.github.com/MajinBuuOnSecurity/cb6b4689b47f555a2324c3f33da8e7eb#file-public_subnets-go-L172-L181) to iterate through all regions.
 
-[^1404]: Even if it did, [`"aws_subnets"`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/subnets) is one of the [better](https://github.com/hashicorp/terraform/issues/16380#issuecomment-418476841) data sources. [aws_lb](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/lb) and [aws_lbs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/lbs) do not have filters, and the latter fails if there are none.
+[^1404]: Even if it did, [`"aws_subnets"`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/subnets) is one of the [better](https://github.com/hashicorp/terraform/issues/16380#issuecomment-418476841) data sources. E.g. [aws_lb](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/lb) and [aws_lbs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/lbs) do not have filters, and the latter fails if there are none.
 
 Finally we can create an [`aws_iam_policy_document`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)[^1427] similar to the following abbreviated[^1428] policy:
 
 [^1427]: See [this gist](https://gist.github.com/MajinBuuOnSecurity/205273d308435f8d4a52759836aeb9e5) for a denylist example.
-[^1428]: If going with an allowlist approach, you also need statements that cover all other resource types (image, instance, security-group, volume etc.) for these actions. 
+[^1428]: If going with an allowlist approach, you also need statements that cover all the other resource types (image, instance, security-group, volume etc.)
 
 
 ```go
