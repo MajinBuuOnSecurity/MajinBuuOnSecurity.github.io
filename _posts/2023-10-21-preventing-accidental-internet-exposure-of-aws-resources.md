@@ -69,7 +69,7 @@ Then you need to ensure your network architecture tightly couples a NAT Gateway 
 
 Hopefully one of these options will align with the goals of your networking team. 
 
-My personal recommendation is: Go with TGW, if you can't do VPC Sharing. Once you are ready to implement Egress Filtering, have assets use PrivateLink + Egress Filtering.
+My personal recommendation is: Go with TGW. Once you are ready to implement Egress Filtering, have assets use PrivateLink + Egress Filtering.
 
 ### Option 1: Centralized Egress via Transit Gateway (TGW)
 
@@ -134,6 +134,8 @@ Using PrivateLink, in this way, would look like this:
 This is the simplest option and is not well known.[^996]
 
 You can simply make a VPC in your networking account, and share private subnets to subaccounts.
+
+TODO: Talk about the extra steps here.. NACL / `ec2:AssociatePublicIpAddress` / Global Accelerator
 
 ![alt text](https://i.imgur.com/4OojfzP.png)
 

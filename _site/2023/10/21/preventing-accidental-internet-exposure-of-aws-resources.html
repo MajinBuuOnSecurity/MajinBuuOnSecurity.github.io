@@ -195,7 +195,7 @@
 
 <p>Hopefully one of these options will align with the goals of your networking team.</p>
 
-<p>My personal recommendation is: Go with TGW, if you can’t do VPC Sharing. Once you are ready to implement Egress Filtering, have assets use PrivateLink + Egress Filtering.</p>
+<p>My personal recommendation is: Go with TGW. Once you are ready to implement Egress Filtering, have assets use PrivateLink + Egress Filtering.</p>
 
 <h3 id="option-1-centralized-egress-via-transit-gateway-tgw">Option 1: Centralized Egress via Transit Gateway (TGW)</h3>
 
@@ -255,6 +255,8 @@
 <p>This is the simplest option and is not well known.<sup id="fnref:996" role="doc-noteref"><a href="#fn:996" class="footnote" rel="footnote">9</a></sup></p>
 
 <p>You can simply make a VPC in your networking account, and share private subnets to subaccounts.</p>
+
+<p>TODO: Talk about the extra steps here.. NACL / <code class="language-plaintext highlighter-rouge">ec2:AssociatePublicIpAddress</code> / Global Accelerator</p>
 
 <p><img src="https://i.imgur.com/4OojfzP.png" alt="alt text" /></p>
 
