@@ -323,7 +323,7 @@ Creation of load balancer:
 
 Creation of instance in public subnet:
 
-...TODO...
+![alt text](https://i.imgur.com/1e4M8z4.gif)
 
 Target group of load balancer
 
