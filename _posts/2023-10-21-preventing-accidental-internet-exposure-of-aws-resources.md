@@ -19,15 +19,17 @@ When a public S3 bucket is needed, ideally it would be made in a special `S3 Pub
 
 [^2]: [New S3 buckets have Public Access Block by default now](https://aws.amazon.com/about-aws/whats-new/2022/12/amazon-s3-automatically-enable-block-public-access-disable-access-control-lists-buckets-april-2023/), but being able to look at your AWS Org structure from a thousand-foot view and know which subtree can have public S3 buckets is invaluable.
 
-A simplified and idealistic AWS organization structure supporting this is:
+A simplified and idealistic[^2154] AWS organization structure supporting this is:
 
 ![alt text](https://i.imgur.com/bPIKZoC.png)
+
+[^2154]: You may think this architecture is unrealistic for your company, and you might be right.
 
 ## About The Problem
 
 The question this post answers is: How do you implement the same strategy for resources in a VPC (EC2 instances, ELBs, RDS databases, etc.)?
 
-These are resources that can be found via traditional public IP network scanning or [searching Shodan](https://maia.crimew.gay/posts/how-to-hack-an-airline/).
+These are resources that can be found by an attacker via traditional public IP network scanning or [searching Shodan](https://maia.crimew.gay/posts/how-to-hack-an-airline/).
 
 
 This is more complicated, because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).
@@ -85,7 +87,7 @@ As you can see, each VPC in a subaccount has a route table that has 0.0.0.0/0 de
 
 #### A Note On Cost
 
-This will save you money on NAT Gateways, which is arguably the most notoriously expensive networking component in AWS.
+This will reduce your NAT Gateway cost, which is arguably the most notoriously expensive networking component in AWS.
 
 On one hand, [AWS states](https://docs.aws.amazon.com/whitepapers/latest/building-scalable-secure-multi-vpc-network-infrastructure/centralized-egress-to-internet.html):
 
@@ -96,7 +98,9 @@ On the other hand, they also say:
 >In some edge cases, when you send huge amounts of data through a NAT gateway from a VPC, keeping the NAT local in the VPC to avoid the Transit Gateway data processing charge might be a more cost-effective option.
 
 Sending huge amounts of data through a NAT Gateway should be avoided anyway.
-[S3](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html), [Splunk](https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html), [Honeycomb](https://docs.honeycomb.io/integrations/aws/aws-privatelink/), and similar companies have VPC endpoints you can utilize to lower NAT Gateway data processing charges.
+[S3](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html), [Splunk](https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html), [Honeycomb](https://docs.honeycomb.io/integrations/aws/aws-privatelink/), and similar companies[^1350] have VPC endpoints you can utilize to lower NAT Gateway data processing charges.
+
+[^1350]: There are some companies with agents meant to be deployed on EC2s that do not offer a VPC endpoint, [perhaps](https://sso.tax/) a [wall](https://fido.fail/) of [shame](https://github.com/SummitRoute/imdsv2_wall_of_shame#imdsv2-wall-of-shame) can be made.
 
 ### Option 2: Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering
 

@@ -146,7 +146,7 @@
 
 <p>When a public S3 bucket is needed, ideally it would be made in a special <code class="language-plaintext highlighter-rouge">S3 Public Resources</code> account (under a separate OU) where only public S3 buckets can live.<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup></p>
 
-<p>A simplified and idealistic AWS organization structure supporting this is:</p>
+<p>A simplified and idealistic<sup id="fnref:2154" role="doc-noteref"><a href="#fn:2154" class="footnote" rel="footnote">3</a></sup> AWS organization structure supporting this is:</p>
 
 <p><img src="https://i.imgur.com/bPIKZoC.png" alt="alt text" /></p>
 
@@ -154,7 +154,7 @@
 
 <p>The question this post answers is: How do you implement the same strategy for resources in a VPC (EC2 instances, ELBs, RDS databases, etc.)?</p>
 
-<p>These are resources that can be found via traditional public IP network scanning or <a href="https://maia.crimew.gay/posts/how-to-hack-an-airline/">searching Shodan</a>.</p>
+<p>These are resources that can be found by an attacker via traditional public IP network scanning or <a href="https://maia.crimew.gay/posts/how-to-hack-an-airline/">searching Shodan</a>.</p>
 
 <p>This is more complicated, because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).</p>
 
@@ -205,13 +205,13 @@
 
 <p><img src="https://i.imgur.com/alRH2hN.png" alt="alt text" /></p>
 
-<p>AWS first wrote about this <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/creating-a-single-internet-exit-point-from-multiple-vpcs-using-aws-transit-gateway/">in 2019</a><sup id="fnref:5555" role="doc-noteref"><a href="#fn:5555" class="footnote" rel="footnote">3</a></sup> and lists it under their prescriptive guidance as <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/transitioning-to-multiple-aws-accounts/centralized-egress.html">Centralized Egress</a>.</p>
+<p>AWS first wrote about this <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/creating-a-single-internet-exit-point-from-multiple-vpcs-using-aws-transit-gateway/">in 2019</a><sup id="fnref:5555" role="doc-noteref"><a href="#fn:5555" class="footnote" rel="footnote">4</a></sup> and lists it under their prescriptive guidance as <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/transitioning-to-multiple-aws-accounts/centralized-egress.html">Centralized Egress</a>.</p>
 
 <p>As you can see, each VPC in a subaccount has a route table that has 0.0.0.0/0 destined traffic sent to a TGW in another account, where an IGW does live.</p>
 
 <h4 id="a-note-on-cost">A Note On Cost</h4>
 
-<p>This will save you money on NAT Gateways, which is arguably the most notoriously expensive networking component in AWS.</p>
+<p>This will reduce your NAT Gateway cost, which is arguably the most notoriously expensive networking component in AWS.</p>
 
 <p>On one hand, <a href="https://docs.aws.amazon.com/whitepapers/latest/building-scalable-secure-multi-vpc-network-infrastructure/centralized-egress-to-internet.html">AWS states</a>:</p>
 
@@ -226,7 +226,7 @@
 </blockquote>
 
 <p>Sending huge amounts of data through a NAT Gateway should be avoided anyway.
-<a href="https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html">S3</a>, <a href="https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html">Splunk</a>, <a href="https://docs.honeycomb.io/integrations/aws/aws-privatelink/">Honeycomb</a>, and similar companies have VPC endpoints you can utilize to lower NAT Gateway data processing charges.</p>
+<a href="https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html">S3</a>, <a href="https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html">Splunk</a>, <a href="https://docs.honeycomb.io/integrations/aws/aws-privatelink/">Honeycomb</a>, and similar companies<sup id="fnref:1350" role="doc-noteref"><a href="#fn:1350" class="footnote" rel="footnote">5</a></sup> have VPC endpoints you can utilize to lower NAT Gateway data processing charges.</p>
 
 <h3 id="option-2-centralized-egress-via-privatelink-or-vpc-peering-with-egress-filtering">Option 2: Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering</h3>
 
@@ -241,10 +241,10 @@
   <li>Significant effort</li>
   <li>It won’t be possible for all subaccount types, such as sandbox accounts. (Where requiring <code class="language-plaintext highlighter-rouge">iptables</code> and a proxy are too heavyweight.)</li>
   <li>Egress filtering is lower-priority than preventing accidental Internet-exposure. So tightly coupling the two and needing to setup a proxy first may not make strategic sense.</li>
-  <li>If something goes wrong on the host, the lost traffic will not appear in VPC flow logs <sup id="fnref:98" role="doc-noteref"><a href="#fn:98" class="footnote" rel="footnote">4</a></sup> or traffic mirroring logs.<sup id="fnref:985" role="doc-noteref"><a href="#fn:985" class="footnote" rel="footnote">5</a></sup> The DNS lookups will show up in Route53 query logs, but that’s it.</li>
+  <li>If something goes wrong on the host, the lost traffic will not appear in VPC flow logs <sup id="fnref:98" role="doc-noteref"><a href="#fn:98" class="footnote" rel="footnote">6</a></sup> or traffic mirroring logs.<sup id="fnref:985" role="doc-noteref"><a href="#fn:985" class="footnote" rel="footnote">7</a></sup> The DNS lookups will show up in Route53 query logs, but that’s it.</li>
 </ul>
 
-<p>With that said, AWS does not have a primitive to perform Egress filtering <sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">6</a></sup>, so you will eventually have to implement Egress filtering via a proxy. Therefore, in production accounts, you can go with this option. For sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).</p>
+<p>With that said, AWS does not have a primitive to perform Egress filtering <sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">8</a></sup>, so you will eventually have to implement Egress filtering via a proxy. Therefore, in production accounts, you can go with this option. For sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).</p>
 
 <p>Using PrivateLink, in this way, would look like this:</p>
 
@@ -252,7 +252,7 @@
 
 <h3 id="option-3-vpc-sharing">Option 3: VPC Sharing</h3>
 
-<p>This is the simplest option and is not well known.<sup id="fnref:996" role="doc-noteref"><a href="#fn:996" class="footnote" rel="footnote">7</a></sup></p>
+<p>This is the simplest option and is not well known.<sup id="fnref:996" role="doc-noteref"><a href="#fn:996" class="footnote" rel="footnote">9</a></sup></p>
 
 <p>You can simply make a VPC in your networking account, and share private subnets to subaccounts.</p>
 
@@ -392,11 +392,11 @@ Tedy Tirtawidjaja for more information.</p>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>Except that is insufficient: as it does not read from every region.<sup id="fnref:1404" role="doc-noteref"><a href="#fn:1404" class="footnote" rel="footnote">8</a></sup></p>
+<p>Except that is insufficient: as it does not read from every region.<sup id="fnref:1404" role="doc-noteref"><a href="#fn:1404" class="footnote" rel="footnote">10</a></sup></p>
 
 <p>So, we need to write <a href="https://gist.github.com/MajinBuuOnSecurity/cb6b4689b47f555a2324c3f33da8e7eb#file-public_subnets-go-L172-L181">our own custom Terraform provider</a> to iterate through all regions.</p>
 
-<p>Finally, we can create an <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document"><code class="language-plaintext highlighter-rouge">aws_iam_policy_document</code></a><sup id="fnref:1427" role="doc-noteref"><a href="#fn:1427" class="footnote" rel="footnote">9</a></sup> similar to the following abbreviated<sup id="fnref:1428" role="doc-noteref"><a href="#fn:1428" class="footnote" rel="footnote">10</a></sup> policy:</p>
+<p>Finally, we can create an <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document"><code class="language-plaintext highlighter-rouge">aws_iam_policy_document</code></a><sup id="fnref:1427" role="doc-noteref"><a href="#fn:1427" class="footnote" rel="footnote">11</a></sup> similar to the following abbreviated<sup id="fnref:1428" role="doc-noteref"><a href="#fn:1428" class="footnote" rel="footnote">12</a></sup> policy:</p>
 
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">data</span> <span class="s">"private_subnets"</span> <span class="s">"subnets"</span> <span class="p">{</span>
   <span class="n">regions</span> <span class="o">=</span> <span class="k">var</span><span class="o">.</span><span class="n">regions_in_use</span>
@@ -517,7 +517,7 @@ Tedy Tirtawidjaja for more information.</p>
 
 <p><code class="language-plaintext highlighter-rouge">eks:CreateCluster</code> creates a public Kubernetes API endpoint in <em>another</em> AWS account you do not own.</p>
 
-<p>Although, by default, the API requires an authorized token to perform sensitive actions<sup id="fnref:777" role="doc-noteref"><a href="#fn:777" class="footnote" rel="footnote">11</a></sup>, it can still be hit by the Internet and does not need an IGW.</p>
+<p>Although, by default, the API requires an authorized token to perform sensitive actions<sup id="fnref:777" role="doc-noteref"><a href="#fn:777" class="footnote" rel="footnote">13</a></sup>, it can still be hit by the Internet and does not need an IGW.</p>
 
 <p>I do not know of any other API calls like this.</p>
 
@@ -527,7 +527,7 @@ Tedy Tirtawidjaja for more information.</p>
 
 <p>For most AWS accounts, you should have an allowlist strategy for IAM service prefixes that limit the amount of AWS services you need to know in-depth.</p>
 
-<p>For sandbox accounts, this is not feasible, so you will need to manually maintain a deny list of these IAM actions.<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">12</a></sup></p>
+<p>For sandbox accounts, this is not feasible, so you will need to manually maintain a deny list of these IAM actions.<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">14</a></sup></p>
 
 <h2 id="faq">FAQ</h2>
 
@@ -602,8 +602,14 @@ Tedy Tirtawidjaja for more information.</p>
     <li id="fn:2" role="doc-endnote">
       <p><a href="https://aws.amazon.com/about-aws/whats-new/2022/12/amazon-s3-automatically-enable-block-public-access-disable-access-control-lists-buckets-april-2023/">New S3 buckets have Public Access Block by default now</a>, but being able to look at your AWS Org structure from a thousand-foot view and know which subtree can have public S3 buckets is invaluable. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
+    <li id="fn:2154" role="doc-endnote">
+      <p>You may think this architecture is unrealistic for your company, and you might be right. <a href="#fnref:2154" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
     <li id="fn:5555" role="doc-endnote">
       <p>Let me know if you find an earlier reference. <a href="#fnref:5555" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:1350" role="doc-endnote">
+      <p>There are some companies with agents meant to be deployed on EC2s that do not offer a VPC endpoint, <a href="https://sso.tax/">perhaps</a> a <a href="https://fido.fail/">wall</a> of <a href="https://github.com/SummitRoute/imdsv2_wall_of_shame#imdsv2-wall-of-shame">shame</a> can be made. <a href="#fnref:1350" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:98" role="doc-endnote">
       <p><a href="https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html#flow-logs-limitations">Flow log limitations</a> does not state “Internet-bound traffic sent to a peering connection” or “Internet-bound traffic sent to a VPC interface endpoint.” under <code class="language-plaintext highlighter-rouge">The following types of traffic are not logged:</code>. After testing I believe it should, but these are likely omitted due to not being a proper use-case. <a href="#fnref:98" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
