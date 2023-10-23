@@ -15,17 +15,19 @@ S3 is far simpler to secure than resources in a VPC, so let's use that as an exa
 
 In your multi-account AWS strategy, most accounts should have [account-wide public block access for S3](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_account_public_access_block) enabled at account creation time and have that control made immutable [via SCP](https://summitroute.com/blog/2020/03/25/aws_scp_best_practices/#protect-security-settings), eliminating the possibility of S3 public data leaks. 
 
-When a public S3 bucket is needed, it should be made in a special `S3 Public Resources` account (under a separate OU) where only public S3 buckets can live.[^2]
+When a public S3 bucket is needed, ideally it would be made in a special `S3 Public Resources` account (under a separate OU) where only public S3 buckets can live.[^2]
 
 [^2]: [New S3 buckets have Public Access Block by default now](https://aws.amazon.com/about-aws/whats-new/2022/12/amazon-s3-automatically-enable-block-public-access-disable-access-control-lists-buckets-april-2023/), but being able to look at your AWS Org structure from a thousand-foot view and know which subtree can have public S3 buckets is invaluable.
 
-A simplified AWS organization structure supporting this is:
+A simplified and idealistic AWS organization structure supporting this is:
 
 ![alt text](https://i.imgur.com/bPIKZoC.png)
 
 ## About The Problem
 
 The question this post answers is: How do you implement the same strategy for resources in a VPC (EC2 instances, ELBs, RDS databases, etc.)?
+
+These are resources that can be found via traditional public IP network scanning or [searching Shodan](https://maia.crimew.gay/posts/how-to-hack-an-airline/).
 
 
 This is more complicated, because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).
@@ -37,11 +39,11 @@ The Egress use-case typical looks like:
 
 Whereas an accidental Internet exposure might look like:
 
-![alt text](https://i.imgur.com/utMw64L.png) 
+![alt text](https://i.imgur.com/1e4M8z4.gif)
 
 Or:
 
-![alt text](https://i.imgur.com/i65kHne.png)
+![alt text](https://i.imgur.com/gyXZz2E.gif)
 
 There are many ways to expose resources to the Internet like this, but the key insight is that they all require an Internet Gateway (IGW).
 
@@ -54,7 +56,18 @@ That's it. Problem solved! You can hand the subaccount over to the customer, the
 
 You can then, put accounts that were vended this way with the IGW-deny-SCP, in an OU and achieve [What Good Looks Like](#what-good-looks-like) above.
 
-But what if you need to support the Egress use-case above? Then you have 4 possible options.
+But what if you need to support the Egress use-case above?
+
+Then you need to ensure your network architecture tightly couples a NAT Gateway with an Internet Gateway, by e.g. giving subaccounts a paved path to a NAT Gateway in another account, the ways to do this are:
+
+1. [Centralized Egress via Transit Gateway (TGW)](#option-1-centralized-egress-via-transit-gateway-tgw)
+2. [Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering](#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-egress-filtering)
+3. [VPC Sharing](#option-3-vpc-sharing)
+4. [IPv6 for Egress](#option-4-ipv6-for-egress)
+
+Hopefully one of these options will align with the goals of your networking team. 
+
+My personal recommendation is: Go with TGW, if you can't do VPC Sharing. Once you are ready to implement Egress Filtering, have assets use PrivateLink + Egress Filtering.
 
 ### Option 1: Centralized Egress via Transit Gateway (TGW)
 
@@ -85,9 +98,9 @@ On the other hand, they also say:
 Sending huge amounts of data through a NAT Gateway should be avoided anyway.
 [S3](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html), [Splunk](https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html), [Honeycomb](https://docs.honeycomb.io/integrations/aws/aws-privatelink/), and similar companies have VPC endpoints you can utilize to lower NAT Gateway data processing charges.
 
-### Option 2: Centralized Egress via PrivateLink / VPC Peering with Egress Filtering
+### Option 2: Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering
 
-VPC Peering or PrivateLink are mostly non-options. See the [FAQ](#why-is-vpc-peering-not-a-straightforward-option) for more information.
+PrivateLink and VPC Peering are mostly non-options. See the [FAQ](#why-is-vpc-peering-not-a-straightforward-option) for more information.
 
 However, if you are will to do a lot of heavy lifting that is orthogonal to AWS primitives, you _can_ use these in combination with [Internet Egress Filtering](https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9), to accomplish centralized egress. This is because the destination IP of outbound traffic won't be the Internet, but a private IP.
 
@@ -96,7 +109,7 @@ This is assuming you are deploying e.g. iptables, to re-route Internet-destined 
 Some reasons you may not want to do this are:
 - Significant effort
 - It won't be possible for all subaccount types, such as sandbox accounts. (Where requiring `iptables` and a proxy are too heavyweight.)
-- Egress filtering (P2/P3) is further down the security maturity roadmap than preventing accidental Internet-exposure (P1). So tightly coupling the two and needing to setup a proxy first may not make strategic sense.
+- Egress filtering is lower-priority than preventing accidental Internet-exposure. So tightly coupling the two and needing to setup a proxy first may not make strategic sense.
 - If something goes wrong on the host, the lost traffic will not appear in VPC flow logs [^98] or traffic mirroring logs.[^985] The DNS lookups will show up in Route53 query logs, but that's it.
 
 With that said, AWS does not have a primitive to perform Egress filtering [^99], so you will eventually have to implement Egress filtering via a proxy. Therefore, in production accounts, you can go with this option. For sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).
@@ -146,7 +159,7 @@ Remember how I said, "in AWS: Egress to the Internet is tightly coupled with Ing
 
 IPv6 addresses are globally unique and, therefore, public by default. Due to this, AWS created the primitive of an [Egress-only Internet Gateway](https://docs.aws.amazon.com/vpc/latest/userguide/egress-only-internet-gateway.html), 
 
-Unfortunately, with this primitive, there is no way to connect IPv4-only destinations, so if that is necessary, go with one of the other 3 options.
+Unfortunately, with this primitive, there is no way to connect IPv4-only destinations, so if that is necessary -- which it likely is -- go with one of the other 3 options.
 
 ![alt text](https://i.imgur.com/wtuaa71.png)
 
@@ -160,19 +173,13 @@ The problem is the NAT Gateway then needs an IGW to communicate with the destina
 
 ### Tradeoffs
 
-My recommendation: Go with TGW, if you can't do VPC Sharing. Once you are ready to implement Egress Filtering, have  assets use PrivateLink + Egress Filtering.
-
-Being limited to IPv6-only destinations is likely unfeasible for your current or future use-cases, but you know best.
-
-The important thing is, no matter which direction your networking team wants to go in, you can ban IGWs.
-
 Criteria                   | TGW                   | VPC Sharing           | IPv6-Only             | PrivateLink + Egress Filtering
 -------------------------- | --------------------- | --------------------- | --------------------- | ---------------------
-AWS Billing Cost           | <span style="color:red">Highest</span> | Lowest                              | Low                                | Medium
-Complexity*                | Medium                                 | Low                                 | Medium                             | <span style="color:red">High</span>
-Scalability*               | High                                   | Low                                 | High                               | High
+AWS Billing Cost           | <span style="color:red">Highest</span> | Lowest                              | Low                                   | Medium
+Complexity*                | Medium                                 | Low                                 | Medium                                | <span style="color:red">High</span>
+Scalability*               | High                                   | Low                                 | Medium                                | High
 Flexibility*               | High                                   | Medium                              | <span style="color:red">Lowest</span> | High
-Will Prevent Org Migration | False                                  | <span style="color:red">True</span> | False                              | False
+Will Prevent Org Migration | False                                  | <span style="color:red">True</span> | False                                 | False
 
 \* = YMMV
 
@@ -354,11 +361,9 @@ Although, by default, the API requires an authorized token to perform sensitive 
 
 I do not know of any other API calls like this.
 
-I likely missed some; let me know via email, and I'll update this.
+I likely missed one; let me know via email, and I'll update this.
 
 For global accelerator, you still need a [symbolic IGW in the VPC](https://aws.amazon.com/blogs/networking-and-content-delivery/accessing-private-application-load-balancers-and-instances-through-aws-global-accelerator/), so I did not include it here.
-
-To be clear, I am not talking about messing up an IAM trust or [resource-based policy](https://matthewdf10.medium.com/aws-accounts-as-security-boundaries-97-ways-data-can-be-shared-across-accounts-b933ce9c837e) -- only what could show up from doing traditional network scanning / searching Shodan. 
 
 For most AWS accounts, you should have an allowlist strategy for IAM service prefixes that limit the amount of AWS services you need to know in-depth.
 
