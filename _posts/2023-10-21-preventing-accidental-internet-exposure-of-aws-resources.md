@@ -106,7 +106,7 @@ Sending huge amounts of data through a NAT Gateway should be avoided anyway.
 
 PrivateLink and VPC Peering are mostly non-options. See the [FAQ](#why-is-vpc-peering-not-a-straightforward-option) for more information.
 
-However, if you are will to do a lot of heavy lifting that is orthogonal to AWS primitives, you _can_ use these in combination with [Internet Egress Filtering](https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9), to accomplish centralized egress. This is because the destination IP of outbound traffic won't be the Internet, but a private IP.
+However, if you are willing to do a lot of heavy lifting that is orthogonal to AWS primitives, you _can_ use these in combination with [Internet Egress Filtering](https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9), to accomplish centralized egress. This is because the destination IP of outbound traffic won't be the Internet, but a private IP.
 
 This is assuming you are deploying e.g. iptables, to re-route Internet-destined traffic on every host.
 
@@ -146,7 +146,16 @@ In the [Shareable AWS Resources](https://docs.aws.amazon.com/ram/latest/userguid
 
 > Can share with ***only*** AWS accounts in its own organization.
 
-This means you can never perform an AWS organization migration in the future, so if you are 99% of AWS customers, do not use VPC sharing.
+This means you can never perform an AWS organization migration in the future.
+
+If you are like most AWS customers:
+- The Management Account of your AWS Organization has most of your resources in it
+- You want to follow Best Practices[^996221] and have an empty Management Account
+- It is infeasible to 'empty' out the current management account over time
+
+[^996221]: This is Stage 1 of Scott's [AWS Security Maturity Roadmap](https://summitroute.com/downloads/aws_security_maturity_roadmap-Summit_Route.pdf), for example.
+
+Then you will need to perform an org migration in the future, and should stay away from VPC Sharing.
 
 However, suppose you are willing to risk a production outage 😂 (Particularly if you do not use ASGs or Load Balancers, which will lose access to the subnets.) The NAT Gateway will remain functional according to AWS.
 
@@ -154,8 +163,7 @@ See
 
 >Scenario 5: VPC Sharing across multiple accounts
 
-from [Migrating accounts between AWS Organizations from a network perspective](https://aws.amazon.com/blogs/networking-and-content-delivery/migrating-accounts-between-aws-organizations-from-a-network-perspective/) by 
-Tedy Tirtawidjaja for more information.
+from [Migrating accounts between AWS Organizations, a network perspective](https://aws.amazon.com/blogs/networking-and-content-delivery/migrating-accounts-between-aws-organizations-from-a-network-perspective/) by Tedy Tirtawidjaja for more information.
 
 ### Option 4: IPv6 for Egress
 

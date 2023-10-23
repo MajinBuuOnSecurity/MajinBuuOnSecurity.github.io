@@ -232,7 +232,7 @@
 
 <p>PrivateLink and VPC Peering are mostly non-options. See the <a href="#why-is-vpc-peering-not-a-straightforward-option">FAQ</a> for more information.</p>
 
-<p>However, if you are will to do a lot of heavy lifting that is orthogonal to AWS primitives, you <em>can</em> use these in combination with <a href="https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9">Internet Egress Filtering</a>, to accomplish centralized egress. This is because the destination IP of outbound traffic won’t be the Internet, but a private IP.</p>
+<p>However, if you are willing to do a lot of heavy lifting that is orthogonal to AWS primitives, you <em>can</em> use these in combination with <a href="https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9">Internet Egress Filtering</a>, to accomplish centralized egress. This is because the destination IP of outbound traffic won’t be the Internet, but a private IP.</p>
 
 <p>This is assuming you are deploying e.g. iptables, to re-route Internet-destined traffic on every host.</p>
 
@@ -266,7 +266,16 @@
   <p>Can share with <strong><em>only</em></strong> AWS accounts in its own organization.</p>
 </blockquote>
 
-<p>This means you can never perform an AWS organization migration in the future, so if you are 99% of AWS customers, do not use VPC sharing.</p>
+<p>This means you can never perform an AWS organization migration in the future.</p>
+
+<p>If you are like most AWS customers:</p>
+<ul>
+  <li>The Management Account of your AWS Organization has most of your resources in it</li>
+  <li>You want to follow Best Practices<sup id="fnref:996221" role="doc-noteref"><a href="#fn:996221" class="footnote" rel="footnote">10</a></sup> and have an empty Management Account</li>
+  <li>It is infeasible to ‘empty’ out the current management account over time</li>
+</ul>
+
+<p>Then you will need to perform an org migration in the future, and should stay away from VPC Sharing.</p>
 
 <p>However, suppose you are willing to risk a production outage 😂 (Particularly if you do not use ASGs or Load Balancers, which will lose access to the subnets.) The NAT Gateway will remain functional according to AWS.</p>
 
@@ -276,8 +285,7 @@
   <p>Scenario 5: VPC Sharing across multiple accounts</p>
 </blockquote>
 
-<p>from <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/migrating-accounts-between-aws-organizations-from-a-network-perspective/">Migrating accounts between AWS Organizations from a network perspective</a> by 
-Tedy Tirtawidjaja for more information.</p>
+<p>from <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/migrating-accounts-between-aws-organizations-from-a-network-perspective/">Migrating accounts between AWS Organizations, a network perspective</a> by Tedy Tirtawidjaja for more information.</p>
 
 <h3 id="option-4-ipv6-for-egress">Option 4: IPv6 for Egress</h3>
 
@@ -392,11 +400,11 @@ Tedy Tirtawidjaja for more information.</p>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>Except that is insufficient: as it does not read from every region.<sup id="fnref:1404" role="doc-noteref"><a href="#fn:1404" class="footnote" rel="footnote">10</a></sup></p>
+<p>Except that is insufficient: as it does not read from every region.<sup id="fnref:1404" role="doc-noteref"><a href="#fn:1404" class="footnote" rel="footnote">11</a></sup></p>
 
 <p>So, we need to write <a href="https://gist.github.com/MajinBuuOnSecurity/cb6b4689b47f555a2324c3f33da8e7eb#file-public_subnets-go-L172-L181">our own custom Terraform provider</a> to iterate through all regions.</p>
 
-<p>Finally, we can create an <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document"><code class="language-plaintext highlighter-rouge">aws_iam_policy_document</code></a><sup id="fnref:1427" role="doc-noteref"><a href="#fn:1427" class="footnote" rel="footnote">11</a></sup> similar to the following abbreviated<sup id="fnref:1428" role="doc-noteref"><a href="#fn:1428" class="footnote" rel="footnote">12</a></sup> policy:</p>
+<p>Finally, we can create an <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document"><code class="language-plaintext highlighter-rouge">aws_iam_policy_document</code></a><sup id="fnref:1427" role="doc-noteref"><a href="#fn:1427" class="footnote" rel="footnote">12</a></sup> similar to the following abbreviated<sup id="fnref:1428" role="doc-noteref"><a href="#fn:1428" class="footnote" rel="footnote">13</a></sup> policy:</p>
 
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">data</span> <span class="s">"private_subnets"</span> <span class="s">"subnets"</span> <span class="p">{</span>
   <span class="n">regions</span> <span class="o">=</span> <span class="k">var</span><span class="o">.</span><span class="n">regions_in_use</span>
@@ -517,7 +525,7 @@ Tedy Tirtawidjaja for more information.</p>
 
 <p><code class="language-plaintext highlighter-rouge">eks:CreateCluster</code> creates a public Kubernetes API endpoint in <em>another</em> AWS account you do not own.</p>
 
-<p>Although, by default, the API requires an authorized token to perform sensitive actions<sup id="fnref:777" role="doc-noteref"><a href="#fn:777" class="footnote" rel="footnote">13</a></sup>, it can still be hit by the Internet and does not need an IGW.</p>
+<p>Although, by default, the API requires an authorized token to perform sensitive actions<sup id="fnref:777" role="doc-noteref"><a href="#fn:777" class="footnote" rel="footnote">14</a></sup>, it can still be hit by the Internet and does not need an IGW.</p>
 
 <p>I do not know of any other API calls like this.</p>
 
@@ -527,7 +535,7 @@ Tedy Tirtawidjaja for more information.</p>
 
 <p>For most AWS accounts, you should have an allowlist strategy for IAM service prefixes that limit the amount of AWS services you need to know in-depth.</p>
 
-<p>For sandbox accounts, this is not feasible, so you will need to manually maintain a deny list of these IAM actions.<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">14</a></sup></p>
+<p>For sandbox accounts, this is not feasible, so you will need to manually maintain a deny list of these IAM actions.<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">15</a></sup></p>
 
 <h2 id="faq">FAQ</h2>
 
@@ -622,6 +630,9 @@ Tedy Tirtawidjaja for more information.</p>
     </li>
     <li id="fn:996" role="doc-endnote">
       <p>Shout out to <a href="https://awsteele.com/blog/2022/01/02/shared-vpcs-are-underrated.html">Aiden Steele</a> and <a href="https://sjramblings.io/unlock-the-hidden-power-of-vpc-sharing-in-aws">Stephen Jones</a> for writing their thoughts on VPC Sharing. <a href="#fnref:996" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:996221" role="doc-endnote">
+      <p>This is Stage 1 of Scott’s <a href="https://summitroute.com/downloads/aws_security_maturity_roadmap-Summit_Route.pdf">AWS Security Maturity Roadmap</a>, for example. <a href="#fnref:996221" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:1404" role="doc-endnote">
       <p>Even if it did, <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/subnets"><code class="language-plaintext highlighter-rouge">"aws_subnets"</code></a> is one of the <a href="https://github.com/hashicorp/terraform/issues/16380#issuecomment-418476841">better</a> data sources. E.g. <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/lb">aws_lb</a> and <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/lbs">aws_lbs</a> do not have filters, and the latter fails if there are none. <a href="#fnref:1404" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
