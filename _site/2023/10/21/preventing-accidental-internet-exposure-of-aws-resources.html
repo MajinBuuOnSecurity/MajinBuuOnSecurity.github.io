@@ -106,7 +106,23 @@
       <li><a href="#how-to-stop-it">How To Stop It</a></li>
     </ul>
   </li>
-  <li><a href="#shortcomings">Shortcomings</a></li>
+  <li><a href="#additional-mitigations-required">Additional Mitigations Required</a>
+    <ul>
+      <li><a href="#mitigations-per-service">Mitigations Per Service</a></li>
+      <li><a href="#api-gateway">API Gateway</a></li>
+      <li><a href="#cloudfront">CloudFront</a></li>
+      <li><a href="#ecs">ECS</a></li>
+      <li><a href="#eks">EKS</a></li>
+      <li><a href="#elasticcache">ElasticCache</a></li>
+      <li><a href="#emr">EMR</a></li>
+      <li><a href="#global-accelerator">Global Accelerator</a></li>
+      <li><a href="#lambda">Lambda</a></li>
+      <li><a href="#lightsail">Lightsail</a></li>
+      <li><a href="#neptune">Neptune</a></li>
+      <li><a href="#rds">RDS</a></li>
+      <li><a href="#redshift">Redshift</a></li>
+    </ul>
+  </li>
   <li><a href="#faq">FAQ</a>
     <ul>
       <li><a href="#why-is-vpc-peering-not-a-straightforward-option">Why is VPC peering not a straightforward option?</a></li>
@@ -252,13 +268,40 @@
 
 <h3 id="option-3-vpc-sharing">Option 3: VPC Sharing</h3>
 
-<p>This is the simplest option and is not well known.<sup id="fnref:996" role="doc-noteref"><a href="#fn:996" class="footnote" rel="footnote">9</a></sup></p>
+<p>This is a tempting, simple option, that is not well known.<sup id="fnref:996" role="doc-noteref"><a href="#fn:996" class="footnote" rel="footnote">9</a></sup></p>
 
 <p>You can simply make a VPC in your networking account, and share private subnets to subaccounts.</p>
 
-<p>TODO: Talk about the extra steps here.. NACL / <code class="language-plaintext highlighter-rouge">ec2:AssociatePublicIpAddress</code> / Global Accelerator</p>
+<p>The problem with this approach, is that there will <em>still be an Internet Gateway in the VPC</em>, if you do not go with one of the other approaches.</p>
+
+<p>Being limited to private subnets helps with 2 problems:</p>
+
+<ol>
+  <li>Engineers can launch EC2 instances and you won’t have to worry about them implicitly getting a public IP address</li>
+  <li>Engineers can create Internet-facing Load Balancers, as <code class="language-plaintext highlighter-rouge">CreateLoadBalancer</code> requires that a public subnet be provided</li>
+</ol>
+
+<p>An engineer can still make Internet-facing assets with e.g.</p>
+
+<ul>
+  <li>The <code class="language-plaintext highlighter-rouge">ec2:AssociatePublicIpAddress</code> condition key</li>
+  <li>Global Accelerator</li>
+  <li>Any future services that treat the presence of an IGW as a welcome mat</li>
+</ul>
+
+<p>TODO: Talk about the extra steps here.. TODO</p>
+
+<p>Unfortunately, you cannot leverage a TODO</p>
+
+<p>You cannot create an Internet-facing asset in a private subnet, you can however setup <code class="language-plaintext highlighter-rouge">ec2:AssociatePublicIpAddress</code> / Global Accelerator.</p>
 
 <p><img src="https://i.imgur.com/4OojfzP.png" alt="alt text" /></p>
+
+<h4 id="why-a-nacl-cannot-help">Why a NACL Cannot Help</h4>
+
+<p>A NACL is a stateless TODO</p>
+
+<p>The traditional TODO</p>
 
 <h4 id="a-strategic-implication-of-vpc-sharing">A Strategic Implication of VPC Sharing</h4>
 
@@ -521,23 +564,245 @@
   <li>Cannot modify target groups of public load balancers</li>
 </ul>
 
-<h2 id="shortcomings">Shortcomings</h2>
+<h2 id="additional-mitigations-required">Additional Mitigations Required</h2>
 
-<p>While it is true in almost all cases, that an Internet Gateway (IGW) is a prerequisite to expose an asset to the Internet, there is one exception I am aware of.</p>
+<p>Sadly there are many AWS services that do not require an IGW to make a resource public through network access.</p>
+
+<p>The primary way to mitigate this is to deploy an allowlist strategy for IAM service prefixes, this limits the amount of AWS services you need to know in-depth.</p>
+
+<p>For sandbox accounts, this may not be realistic, so you will need to manually maintain a deny list of these IAM actions.<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">14</a></sup></p>
+
+<p>See <a href="https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access">https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access</a> for a high-level list of actions. I’d encourage you to cut a PR to that repository if you know of a service that is not listed there, I will put extra details in this post about those actions.</p>
+
+<h3 id="mitigations-per-service">Mitigations Per Service</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Service</th>
+      <th>No Public Subnets</th>
+      <th>No IGW</th>
+      <th>Condition Key</th>
+      <th>Condition Key + Resource Type Limits</th>
+      <th>Need To Ban</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>API Gateway</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>Partial</td>
+      <td>Yes</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>CloudFront</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+    </tr>
+    <tr>
+      <td>ECS</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+    </tr>
+    <tr>
+      <td>EC2</td>
+      <td>Partial</td>
+      <td>Yes</td>
+      <td>Partial</td>
+      <td>N/A</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>EKS</td>
+      <td>Partial</td>
+      <td>Partial</td>
+      <td>No</td>
+      <td>N/A</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td>ELB v1 / v2</td>
+      <td>Yes</td>
+      <td>Yes</td>
+      <td>No</td>
+      <td>N/A</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>EMR</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+    </tr>
+    <tr>
+      <td>Lambda</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>Yes</td>
+      <td>N/A</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>Lightsail</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+    </tr>
+    <tr>
+      <td>Neptune</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+    </tr>
+    <tr>
+      <td>RDS</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+      <td>?</td>
+    </tr>
+    <tr>
+      <td>Redshift</td>
+      <td>Maybe</td>
+      <td>Yes</td>
+      <td>No</td>
+      <td>N/A</td>
+      <td>No</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Additionally, as <a href="https://github.com/arkadiyt">Arkadiy Tetelman</a> previously <a href="https://github.com/arkadiyt/aws_public_ips/blob/bb973055c1b8a14af6dbb057aa26cfe0a2ab47c9/lib/aws_public_ips/cli.rb#L5-L39">noted</a>,the following services are managed by AWS such that they are of no concern when it comes to network accessible endpoints:</p>
+<ul>
+  <li>Athena</li>
+  <li>DynamoDB</li>
+  <li>ElasticCache</li>
+  <li>S3</li>
+  <li>SNS</li>
+  <li>SQS</li>
+</ul>
+
+<h3 id="api-gateway">API Gateway</h3>
+
+<p>Summary: Either ban the whole service or have a limited allow solely for private REST APIs.</p>
+
+<p>Only REST APIs can be private, <a href="https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-vs-rest.html">HTTP</a> and <a href="https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-websocket-api.html">Websocket</a> APIs cannot be.</p>
+
+<p>So you have to <a href="https://docs.aws.amazon.com/apigateway/latest/developerguide/security_iam_id-based-policy-examples.html#security_iam_id-based-policy-examples-private-api">limit the allowed resources to REST APIs, and ensure <code class="language-plaintext highlighter-rouge">"apigateway:Request/EndpointType"</code> is private</a>:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>"Resource": [
+"arn:aws:apigateway:us-east-1::/restapis",
+"arn:aws:apigateway:us-east-1::/restapis/??????????"
+],
+...
+"ForAllValues:StringEqualsIfExists": {
+  "apigateway:Request/EndpointType": "PRIVATE",
+  "apigateway:Resource/EndpointType": "PRIVATE"
+}
+</code></pre></div></div>
+
+<p>Note: This takes the cake for weirdest and most error prone IAM example I have ever seen. If you can turn this into a Deny statement some how I’ll give you a prize.</p>
+
+<h3 id="cloudfront">CloudFront</h3>
+
+<p>???</p>
+
+<h3 id="ecs">ECS</h3>
+
+<p>???</p>
+
+<h3 id="eks">EKS</h3>
+
+<p>Summary: Ban the <code class="language-plaintext highlighter-rouge">eks:CreateCluster</code> action</p>
 
 <p><code class="language-plaintext highlighter-rouge">eks:CreateCluster</code> creates a public Kubernetes API endpoint in <em>another</em> AWS account you do not own.</p>
 
-<p>Although, by default, the API requires an authorized token to perform sensitive actions<sup id="fnref:777" role="doc-noteref"><a href="#fn:777" class="footnote" rel="footnote">14</a></sup>, it can still be hit by the Internet and does not need an IGW.</p>
+<p>Although, by default, the API requires an authorized token to perform sensitive actions<sup id="fnref:777" role="doc-noteref"><a href="#fn:777" class="footnote" rel="footnote">15</a></sup>, it can still be hit by the Internet and does not need an IGW.</p>
 
-<p>I do not know of any other API calls like this.</p>
+<h4 id="sidenote-about-the-eks-cluster-role">Sidenote About the EKS Cluster Role</h4>
 
-<p>I likely missed one; let me know via email, and I’ll update this.</p>
+<p>Before creating a cluster, you must have a cluster IAM role with the  <code class="language-plaintext highlighter-rouge">AmazonEKSClusterPolicy</code> AWS managed policy attached.</p>
 
-<p>For global accelerator, you still need a <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/accessing-private-application-load-balancers-and-instances-through-aws-global-accelerator/">symbolic IGW in the VPC</a>, so I did not include it here.</p>
+<p>This is an <a href="https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonEKSClusterPolicy.html#AmazonEKSClusterPolicy-json">overpermissive one-size-fits-all policy</a>.</p>
 
-<p>For most AWS accounts, you should have an allowlist strategy for IAM service prefixes that limit the amount of AWS services you need to know in-depth.</p>
+<p>You <em>can</em> use a combination of <code class="language-plaintext highlighter-rouge">NotAction</code> and <code class="language-plaintext highlighter-rouge">Deny</code> to limit your EKS cluster role to what is actually needed.</p>
 
-<p>For sandbox accounts, this is not feasible, so you will need to manually maintain a deny list of these IAM actions.<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">15</a></sup></p>
+<p>One of the more dangerous permissions is <code class="language-plaintext highlighter-rouge">CreateLoadBalancer</code>.</p>
+
+<p>If you already are limited to private subnets or have no IGWs, then it cannot create public-facing load balancers. As an alternative however, in a pinch you can bring your own load balancer<sup id="fnref:8302" role="doc-noteref"><a href="#fn:8302" class="footnote" rel="footnote">16</a></sup> to EKS, rather than have the <a href="https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html"><code class="language-plaintext highlighter-rouge">AWS Load Balancer Controller</code></a> create them.</p>
+
+<p>This will enable you to limit operators of the EKS cluster to <a href="#iam-protection-rings">Ring 3 style access</a>.</p>
+
+<h3 id="elasticcache">ElasticCache</h3>
+
+<p>All ElasticCache instances are private and designed to be used internally to your VPC, so without e.g. using an EC2 as a NAT instance, there is no concern.</p>
+
+<h3 id="emr">EMR</h3>
+
+<p>???</p>
+
+<h3 id="global-accelerator">Global Accelerator</h3>
+
+<p>For global accelerator, you still need a <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/accessing-private-application-load-balancers-and-instances-through-aws-global-accelerator/">symbolic IGW in the VPC</a>.</p>
+
+<h3 id="lambda">Lambda</h3>
+
+<p>Summary: There is a <code class="language-plaintext highlighter-rouge">FunctionUrlAuthType</code> <a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_awslambda.html#awslambda-policy-keys">condition key</a>.</p>
+
+<p>Block</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>"StringEquals": {
+  "lambda:FunctionUrlAuthType": "NONE"
+}
+</code></pre></div></div>
+<p>or more specifically</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>"StringNotEquals": {
+    "lambda:FunctionUrlAuthType": "AWS_IAM"
+}
+</code></pre></div></div>
+<p>to prevent the function URL endpoint will be public unless you implement your own authorization logic in your function.”</p>
+
+<p>Note: <a href="https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/lambda/require_vpc_lambda.tf#L9-L33">Requiring a lambda lives in a customer-owned VPC</a> only affects Egress, not Ingress. So it is irrelevant here.</p>
+
+<h3 id="lightsail">Lightsail</h3>
+
+<p>???</p>
+
+<h3 id="neptune">Neptune</h3>
+
+<p>???</p>
+
+<h3 id="rds">RDS</h3>
+
+<p>???</p>
+
+<h3 id="redshift">Redshift</h3>
+
+<p>Summary: No IGW, no problem.</p>
+
+<p>The ElasticIp argument in both <a href="https://docs.aws.amazon.com/redshift/latest/APIReference/API_CreateCluster.html">CreateCluster</a> and <a href="https://docs.aws.amazon.com/redshift/latest/APIReference/API_ModifyCluster.html">ModifyCluster</a> says,
+“The cluster must be provisioned in EC2-VPC [as oppsosed to EC2-Classic, I assume] and publicly-accessible through an Internet gateway.”</p>
+
+<p><em>Based on this, I am concluding that no IGW [or possibly no public subnets] would make it so that you cannot access a Redshift cluster. I am not testing this, however, since it would be too expensive.</em> EC2 does not require an instance be in a public subnet to assign an EIP to it, so it would be odd for Redshift to, however RDS documentation says something <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html#USER_VPC.Hiding">similar</a>.</p>
+
+<p>As further evidence, <a href="https://repost.aws/knowledge-center/redshift-cluster-private-public">Instructions for turning a private cluster public</a> state: “Note: An Elastic IP address is required. If you do not choose one, an address will be randomly assigned to you.”</p>
+
+<p>In only the <a href="https://docs.aws.amazon.com/redshift/latest/APIReference/API_ModifyCluster.html">ModifyCluster</a> documentation it states: “Only clusters in VPCs can be set to be publicly available.” The <a href="https://docs.aws.amazon.com/redshift/latest/APIReference/API_CreateCluster.html">CreateCluster</a> documentation does not state this.</p>
+
+<p><a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonredshift.html#amazonredshift-policy-keys">No condition keys</a> exist for e.g. <code class="language-plaintext highlighter-rouge">Encrypted</code> or <code class="language-plaintext highlighter-rouge">ElasticIP</code> or <code class="language-plaintext highlighter-rouge">PubliclyAccessible</code>.</p>
 
 <h2 id="faq">FAQ</h2>
 
@@ -645,11 +910,14 @@
     <li id="fn:1428" role="doc-endnote">
       <p>If going with an allowlist approach, you also need statements that cover all the other resource types (image, instance, security-group, volume etc.) <a href="#fnref:1428" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
+    <li id="fn:1424" role="doc-endnote">
+      <p>Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, nuking) regularly and only have public data in them. <a href="#fnref:1424" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
     <li id="fn:777" role="doc-endnote">
       <p>By default only the <code class="language-plaintext highlighter-rouge">system:public-info-viewer</code> cluster role provides access to a set of endpoints for the <code class="language-plaintext highlighter-rouge">system:unauthenticated</code> group. These endpoints (e.g. <code class="language-plaintext highlighter-rouge">/healthz</code>, <code class="language-plaintext highlighter-rouge">/livez</code>, <code class="language-plaintext highlighter-rouge">/readyz</code>, and <code class="language-plaintext highlighter-rouge">/version</code>) are <a href="https://aws.amazon.com/blogs/security/how-to-use-new-amazon-guardduty-eks-protection-findings/">used by Network Load Balancers to perform health checks</a>. <a href="#fnref:777" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:1424" role="doc-endnote">
-      <p>Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, nuking) regularly and only have public data in them. <a href="#fnref:1424" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    <li id="fn:8302" role="doc-endnote">
+      <p>TODO: Find the link about this. <a href="#fnref:8302" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>

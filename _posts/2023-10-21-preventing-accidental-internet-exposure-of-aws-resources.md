@@ -131,15 +131,39 @@ Using PrivateLink, in this way, would look like this:
 
 ### Option 3: VPC Sharing
 
-This is the simplest option and is not well known.[^996]
+This is a tempting, simple option, that is not well known.[^996]
 
 You can simply make a VPC in your networking account, and share private subnets to subaccounts.
 
-TODO: Talk about the extra steps here.. NACL / `ec2:AssociatePublicIpAddress` / Global Accelerator
+The problem with this approach, is that there will _still be an Internet Gateway in the VPC_, if you do not go with one of the other approaches.
+
+Being limited to private subnets helps with 2 problems:
+
+1. Engineers can launch EC2 instances and you won't have to worry about them implicitly getting a public IP address
+2. Engineers can create Internet-facing Load Balancers, as `CreateLoadBalancer` requires that a public subnet be provided
+
+An engineer can still make Internet-facing assets with e.g.
+
+- The `ec2:AssociatePublicIpAddress` condition key
+- Global Accelerator
+- Any future services that treat the presence of an IGW as a welcome mat
+
+
+TODO: Talk about the extra steps here.. TODO
+
+Unfortunately, you cannot leverage a TODO
+
+You cannot create an Internet-facing asset in a private subnet, you can however setup `ec2:AssociatePublicIpAddress` / Global Accelerator.
 
 ![alt text](https://i.imgur.com/4OojfzP.png)
 
 [^996]: Shout out to [Aiden Steele](https://awsteele.com/blog/2022/01/02/shared-vpcs-are-underrated.html) and [Stephen Jones](https://sjramblings.io/unlock-the-hidden-power-of-vpc-sharing-in-aws) for writing their thoughts on VPC Sharing.
+
+#### Why a NACL Cannot Help
+
+A NACL is a stateless TODO
+
+The traditional TODO
 
 
 #### A Strategic Implication of VPC Sharing
@@ -361,11 +385,75 @@ Banning IAM Actions Conditionally
 - Cannot `ec2:RunInstances` with 
 - Cannot modify target groups of public load balancers
 
+## Additional Mitigations Required
 
+Sadly there are many AWS services that do not require an IGW to make a resource public through network access.
 
-## Shortcomings
+The primary way to mitigate this is to deploy an allowlist strategy for IAM service prefixes, this limits the amount of AWS services you need to know in-depth.
 
-While it is true in almost all cases, that an Internet Gateway (IGW) is a prerequisite to expose an asset to the Internet, there is one exception I am aware of.
+For sandbox accounts, this may not be realistic, so you will need to manually maintain a deny list of these IAM actions.[^1424]
+
+[^1424]: Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, nuking) regularly and only have public data in them.
+
+See [https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access](https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access) for a high-level list of actions. I'd encourage you to cut a PR to that repository if you know of a service that is not listed there, I will put extra details in this post about those actions.
+
+### Mitigations Per Service
+
+Service          | No Public Subnets | No IGW  | Condition Key | Condition Key + Resource Type Limits | Need To Ban
+-----------------|-------------------|---------|---------------|--------------------------------------|------------
+API Gateway      | N/A               | N/A     | Partial       | Yes                                  | No
+CloudFront       | ?                 | ?       | ?             | ?                                    | ?
+ECS              | ?                 | ?       | ?             | ?                                    | ?
+EC2              | Partial           | Yes     | Partial       | N/A                                  | No
+EKS              | Partial           | Partial | No            | N/A                                  | Yes
+ELB v1 / v2      | Yes               | Yes     | No            | N/A                                  | No
+EMR              | ?                 | ?       | ?             | ?                                    | ?
+Lambda           | N/A               | N/A     | Yes           | N/A                                  | No
+Lightsail        | ?                 | ?       | ?             | ?                                    | ?
+Neptune          | ?                 | ?       | ?             | ?                                    | ?
+RDS              | ?                 | ?       | ?             | ?                                    | ?
+Redshift         | Maybe             | Yes     | No            | N/A                                  | No
+
+Additionally, as [Arkadiy Tetelman](https://github.com/arkadiyt) previously [noted](https://github.com/arkadiyt/aws_public_ips/blob/bb973055c1b8a14af6dbb057aa26cfe0a2ab47c9/lib/aws_public_ips/cli.rb#L5-L39),the following services are managed by AWS such that they are of no concern when it comes to network accessible endpoints:
+- Athena
+- DynamoDB
+- ElasticCache
+- S3
+- SNS
+- SQS
+
+### API Gateway
+
+Summary: Either ban the whole service or have a limited allow solely for private REST APIs.
+
+Only REST APIs can be private, [HTTP](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-vs-rest.html) and [Websocket](https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-websocket-api.html) APIs cannot be.
+
+So you have to [limit the allowed resources to REST APIs, and ensure `"apigateway:Request/EndpointType"` is private](https://docs.aws.amazon.com/apigateway/latest/developerguide/security_iam_id-based-policy-examples.html#security_iam_id-based-policy-examples-private-api):
+```
+"Resource": [
+"arn:aws:apigateway:us-east-1::/restapis",
+"arn:aws:apigateway:us-east-1::/restapis/??????????"
+],
+...
+"ForAllValues:StringEqualsIfExists": {
+  "apigateway:Request/EndpointType": "PRIVATE",
+  "apigateway:Resource/EndpointType": "PRIVATE"
+}
+```
+
+Note: This takes the cake for weirdest and most error prone IAM example I have ever seen. If you can turn this into a Deny statement some how I'll give you a prize.
+
+### CloudFront
+
+???
+
+### ECS
+
+???
+
+### EKS
+
+Summary: Ban the `eks:CreateCluster` action
 
 `eks:CreateCluster` creates a public Kubernetes API endpoint in _another_ AWS account you do not own.
 
@@ -373,18 +461,83 @@ Although, by default, the API requires an authorized token to perform sensitive 
 
 [^777]: By default only the `system:public-info-viewer` cluster role provides access to a set of endpoints for the `system:unauthenticated` group. These endpoints (e.g. `/healthz`, `/livez`, `/readyz`, and `/version`) are [used by Network Load Balancers to perform health checks](https://aws.amazon.com/blogs/security/how-to-use-new-amazon-guardduty-eks-protection-findings/).
 
-I do not know of any other API calls like this.
 
-I likely missed one; let me know via email, and I'll update this.
+#### Sidenote About the EKS Cluster Role
 
-For global accelerator, you still need a [symbolic IGW in the VPC](https://aws.amazon.com/blogs/networking-and-content-delivery/accessing-private-application-load-balancers-and-instances-through-aws-global-accelerator/), so I did not include it here.
+Before creating a cluster, you must have a cluster IAM role with the  `AmazonEKSClusterPolicy` AWS managed policy attached.
 
-For most AWS accounts, you should have an allowlist strategy for IAM service prefixes that limit the amount of AWS services you need to know in-depth.
+This is an [overpermissive one-size-fits-all policy](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonEKSClusterPolicy.html#AmazonEKSClusterPolicy-json).
 
-For sandbox accounts, this is not feasible, so you will need to manually maintain a deny list of these IAM actions.[^1424]
+You _can_ use a combination of `NotAction` and `Deny` to limit your EKS cluster role to what is actually needed.
+
+One of the more dangerous permissions is `CreateLoadBalancer`.
+
+If you already are limited to private subnets or have no IGWs, then it cannot create public-facing load balancers. As an alternative however, in a pinch you can bring your own load balancer[^8302] to EKS, rather than have the [`AWS Load Balancer Controller`](https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html) create them.
+
+[^8302]: TODO: Find the link about this.
+
+This will enable you to limit operators of the EKS cluster to [Ring 3 style access](#iam-protection-rings).
+
+### ElasticCache
+
+All ElasticCache instances are private and designed to be used internally to your VPC, so without e.g. using an EC2 as a NAT instance, there is no concern.
+
+### EMR
+
+???
+
+### Global Accelerator
+
+For global accelerator, you still need a [symbolic IGW in the VPC](https://aws.amazon.com/blogs/networking-and-content-delivery/accessing-private-application-load-balancers-and-instances-through-aws-global-accelerator/).
 
 
-[^1424]: Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, nuking) regularly and only have public data in them.
+### Lambda
+
+Summary: There is a `FunctionUrlAuthType` [condition key](https://docs.aws.amazon.com/service-authorization/latest/reference/list_awslambda.html#awslambda-policy-keys).
+
+Block
+```
+"StringEquals": {
+  "lambda:FunctionUrlAuthType": "NONE"
+}
+```
+or more specifically
+```
+"StringNotEquals": {
+    "lambda:FunctionUrlAuthType": "AWS_IAM"
+}
+```
+to prevent the function URL endpoint will be public unless you implement your own authorization logic in your function."
+
+
+Note: [Requiring a lambda lives in a customer-owned VPC](https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/lambda/require_vpc_lambda.tf#L9-L33) only affects Egress, not Ingress. So it is irrelevant here.
+
+### Lightsail
+
+???
+
+### Neptune
+
+???
+
+### RDS
+
+???
+
+### Redshift
+
+Summary: No IGW, no problem.
+
+The ElasticIp argument in both [CreateCluster](https://docs.aws.amazon.com/redshift/latest/APIReference/API_CreateCluster.html) and [ModifyCluster](https://docs.aws.amazon.com/redshift/latest/APIReference/API_ModifyCluster.html) says,
+"The cluster must be provisioned in EC2-VPC [as oppsosed to EC2-Classic, I assume] and publicly-accessible through an Internet gateway."
+
+_Based on this, I am concluding that no IGW [or possibly no public subnets] would make it so that you cannot access a Redshift cluster. I am not testing this, however, since it would be too expensive._ EC2 does not require an instance be in a public subnet to assign an EIP to it, so it would be odd for Redshift to, however RDS documentation says something [similar](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html#USER_VPC.Hiding).
+
+As further evidence, [Instructions for turning a private cluster public](https://repost.aws/knowledge-center/redshift-cluster-private-public) state: "Note: An Elastic IP address is required. If you do not choose one, an address will be randomly assigned to you."
+
+In only the [ModifyCluster](https://docs.aws.amazon.com/redshift/latest/APIReference/API_ModifyCluster.html) documentation it states: "Only clusters in VPCs can be set to be publicly available." The [CreateCluster](https://docs.aws.amazon.com/redshift/latest/APIReference/API_CreateCluster.html) documentation does not state this.
+
+[No condition keys](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonredshift.html#amazonredshift-policy-keys) exist for e.g. `Encrypted` or `ElasticIP` or `PubliclyAccessible`.
 
 ## FAQ
 
