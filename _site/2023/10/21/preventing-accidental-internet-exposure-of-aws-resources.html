@@ -576,7 +576,7 @@
 
 <p>For sandbox accounts, this may not be realistic, so you will need to manually maintain a deny list of these IAM actions.<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">14</a></sup></p>
 
-<p>See <a href="https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access">https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access</a> for a high-level list of actions. I’d encourage you to cut a PR to that repository if you know of a service that is not listed there, I will put extra details in this post about those actions.</p>
+<p>See <a href="https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access">https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access</a><sup id="fnref:11245" role="doc-noteref"><a href="#fn:11245" class="footnote" rel="footnote">15</a></sup> for a high-level list of actions. I’d encourage you to cut a PR to that repository if you know of a service that is not listed there, I will put extra details in this post about those actions.</p>
 
 <h3 id="mitigations-per-service">Mitigations Per Service</h3>
 
@@ -601,12 +601,28 @@
       <td>No</td>
     </tr>
     <tr>
+      <td>Athena</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>No</td>
+    </tr>
+    <tr>
       <td>CloudFront</td>
       <td>?</td>
       <td>?</td>
       <td>?</td>
       <td>?</td>
       <td>?</td>
+    </tr>
+    <tr>
+      <td>DynamoDB</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>No</td>
     </tr>
     <tr>
       <td>ECS</td>
@@ -618,7 +634,7 @@
     </tr>
     <tr>
       <td>EC2</td>
-      <td>Partial</td>
+      <td>Yes-ish</td>
       <td>Yes</td>
       <td>Partial</td>
       <td>N/A</td>
@@ -631,6 +647,14 @@
       <td>No</td>
       <td>N/A</td>
       <td>Yes</td>
+    </tr>
+    <tr>
+      <td>ElasticCache</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>Partial</td>
+      <td>Yes</td>
+      <td>No</td>
     </tr>
     <tr>
       <td>ELB v1 / v2</td>
@@ -647,6 +671,14 @@
       <td>?</td>
       <td>?</td>
       <td>?</td>
+    </tr>
+    <tr>
+      <td>Global Accelerator</td>
+      <td>No</td>
+      <td>Yes</td>
+      <td>No</td>
+      <td>No</td>
+      <td>No</td>
     </tr>
     <tr>
       <td>Lambda</td>
@@ -674,31 +706,38 @@
     </tr>
     <tr>
       <td>RDS</td>
-      <td>?</td>
-      <td>?</td>
-      <td>?</td>
-      <td>?</td>
-      <td>?</td>
+      <td>Yes-ish</td>
+      <td>Yes</td>
+      <td>No</td>
+      <td>N/A</td>
+      <td>No</td>
     </tr>
     <tr>
       <td>Redshift</td>
-      <td>Maybe</td>
+      <td>Yes-ish</td>
       <td>Yes</td>
       <td>No</td>
+      <td>N/A</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>S3 / SNS / SQS</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
       <td>N/A</td>
       <td>No</td>
     </tr>
   </tbody>
 </table>
 
-<p>Additionally, as <a href="https://github.com/arkadiyt">Arkadiy Tetelman</a> previously <a href="https://github.com/arkadiyt/aws_public_ips/blob/bb973055c1b8a14af6dbb057aa26cfe0a2ab47c9/lib/aws_public_ips/cli.rb#L5-L39">noted</a>,the following services are managed by AWS such that they are of no concern when it comes to network accessible endpoints:</p>
+<p>TBD:</p>
 <ul>
-  <li>Athena</li>
-  <li>DynamoDB</li>
-  <li>ElasticCache</li>
-  <li>S3</li>
-  <li>SNS</li>
-  <li>SQS</li>
+  <li>CloudFront</li>
+  <li>ECS</li>
+  <li>EMR</li>
+  <li>Lightsail</li>
+  <li>Neptune</li>
 </ul>
 
 <h3 id="api-gateway">API Gateway</h3>
@@ -735,7 +774,7 @@
 
 <p><code class="language-plaintext highlighter-rouge">eks:CreateCluster</code> creates a public Kubernetes API endpoint in <em>another</em> AWS account you do not own.</p>
 
-<p>Although, by default, the API requires an authorized token to perform sensitive actions<sup id="fnref:777" role="doc-noteref"><a href="#fn:777" class="footnote" rel="footnote">15</a></sup>, it can still be hit by the Internet and does not need an IGW.</p>
+<p>Although, by default, the API requires an authorized token to perform sensitive actions<sup id="fnref:777" role="doc-noteref"><a href="#fn:777" class="footnote" rel="footnote">16</a></sup>, it can still be hit by the Internet and does not need an IGW.</p>
 
 <h4 id="sidenote-about-the-eks-cluster-role">Sidenote About the EKS Cluster Role</h4>
 
@@ -747,7 +786,7 @@
 
 <p>One of the more dangerous permissions is <code class="language-plaintext highlighter-rouge">CreateLoadBalancer</code>.</p>
 
-<p>If you already are limited to private subnets or have no IGWs, then it cannot create public-facing load balancers. As an alternative however, in a pinch you can bring your own load balancer<sup id="fnref:8302" role="doc-noteref"><a href="#fn:8302" class="footnote" rel="footnote">16</a></sup> to EKS, rather than have the <a href="https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html"><code class="language-plaintext highlighter-rouge">AWS Load Balancer Controller</code></a> create them.</p>
+<p>If you already are limited to private subnets or have no IGWs, then it cannot create public-facing load balancers. As an alternative however, in a pinch you can bring your own load balancer<sup id="fnref:8302" role="doc-noteref"><a href="#fn:8302" class="footnote" rel="footnote">17</a></sup> to EKS, rather than have the <a href="https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html"><code class="language-plaintext highlighter-rouge">AWS Load Balancer Controller</code></a> create them.</p>
 
 <p>This will enable you to limit operators of the EKS cluster to <a href="#iam-protection-rings">Ring 3 style access</a>.</p>
 
@@ -791,7 +830,9 @@
 
 <h3 id="rds">RDS</h3>
 
-<p>???</p>
+<p>Summary: No IGW, no problem.</p>
+
+<p>Same as EC2.</p>
 
 <h3 id="redshift">Redshift</h3>
 
@@ -800,7 +841,7 @@
 <p>The ElasticIp argument in both <a href="https://docs.aws.amazon.com/redshift/latest/APIReference/API_CreateCluster.html">CreateCluster</a> and <a href="https://docs.aws.amazon.com/redshift/latest/APIReference/API_ModifyCluster.html">ModifyCluster</a> says,
 “The cluster must be provisioned in EC2-VPC [as oppsosed to EC2-Classic, I assume] and publicly-accessible through an Internet gateway.”</p>
 
-<p><em>Based on this, I am concluding that no IGW [or possibly no public subnets] would make it so that you cannot access a Redshift cluster. I am not testing this, however, since it would be too expensive.</em> EC2 does not require an instance be in a public subnet to assign an EIP to it, so it would be odd for Redshift to, however RDS documentation says something <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html#USER_VPC.Hiding">similar</a>.</p>
+<p><em>Based on this, I am concluding that no IGW / no public subnets] would make it so that you cannot access a Redshift cluster. I am not testing this, however, since it would be too expensive.</em> EC2 does not require an instance be in a public subnet to assign an EIP to it, so it would be odd for Redshift to, however RDS <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.DBInstance.Modifying.html">documentation</a> says something <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html#USER_VPC.Hiding">similar</a>.</p>
 
 <p>As further evidence, <a href="https://repost.aws/knowledge-center/redshift-cluster-private-public">Instructions for turning a private cluster public</a> state: “Note: An Elastic IP address is required. If you do not choose one, an address will be randomly assigned to you.”</p>
 
@@ -916,6 +957,9 @@
     </li>
     <li id="fn:1424" role="doc-endnote">
       <p>Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, nuking) regularly and only have public data in them. <a href="#fnref:1424" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:11245" role="doc-endnote">
+      <p>Special thanks to <a href="https://github.com/arkadiyt">Arkadiy Tetelman</a> too, who previously <a href="https://github.com/arkadiyt/aws_public_ips/blob/bb973055c1b8a14af6dbb057aa26cfe0a2ab47c9/lib/aws_public_ips/cli.rb#L5-L39">noted</a> some of these. <a href="#fnref:11245" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:777" role="doc-endnote">
       <p>By default only the <code class="language-plaintext highlighter-rouge">system:public-info-viewer</code> cluster role provides access to a set of endpoints for the <code class="language-plaintext highlighter-rouge">system:unauthenticated</code> group. These endpoints (e.g. <code class="language-plaintext highlighter-rouge">/healthz</code>, <code class="language-plaintext highlighter-rouge">/livez</code>, <code class="language-plaintext highlighter-rouge">/readyz</code>, and <code class="language-plaintext highlighter-rouge">/version</code>) are <a href="https://aws.amazon.com/blogs/security/how-to-use-new-amazon-guardduty-eks-protection-findings/">used by Network Load Balancers to perform health checks</a>. <a href="#fnref:777" class="reversefootnote" role="doc-backlink">&#8617;</a></p>

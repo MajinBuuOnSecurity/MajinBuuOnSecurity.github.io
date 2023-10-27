@@ -399,32 +399,39 @@ For sandbox accounts, this may not be realistic, so you will need to manually ma
 
 [^1424]: Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, nuking) regularly and only have public data in them.
 
-See [https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access](https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access) for a high-level list of actions. I'd encourage you to cut a PR to that repository if you know of a service that is not listed there, I will put extra details in this post about those actions.
+See [https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access](https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access)[^11245] for a high-level list of actions. I'd encourage you to cut a PR to that repository if you know of a service that is not listed there, I will put extra details in this post about those actions.
+
+[^11245]: Special thanks to [Arkadiy Tetelman](https://github.com/arkadiyt) too, who previously [noted](https://github.com/arkadiyt/aws_public_ips/blob/bb973055c1b8a14af6dbb057aa26cfe0a2ab47c9/lib/aws_public_ips/cli.rb#L5-L39) some of these.
 
 ### Mitigations Per Service
 
-Service          | No Public Subnets | No IGW  | Condition Key | Condition Key + Resource Type Limits | Need To Ban
------------------|-------------------|---------|---------------|--------------------------------------|------------
-API Gateway      | N/A               | N/A     | Partial       | Yes                                  | No
-CloudFront       | ?                 | ?       | ?             | ?                                    | ?
-ECS              | ?                 | ?       | ?             | ?                                    | ?
-EC2              | Partial           | Yes     | Partial       | N/A                                  | No
-EKS              | Partial           | Partial | No            | N/A                                  | Yes
-ELB v1 / v2      | Yes               | Yes     | No            | N/A                                  | No
-EMR              | ?                 | ?       | ?             | ?                                    | ?
-Lambda           | N/A               | N/A     | Yes           | N/A                                  | No
-Lightsail        | ?                 | ?       | ?             | ?                                    | ?
-Neptune          | ?                 | ?       | ?             | ?                                    | ?
-RDS              | ?                 | ?       | ?             | ?                                    | ?
-Redshift         | Maybe             | Yes     | No            | N/A                                  | No
+Service            | No Public Subnets | No IGW  | Condition Key | Condition Key + Resource Type Limits | Need To Ban
+-------------------|-------------------|---------|---------------|--------------------------------------|------------
+API Gateway        | N/A               | N/A     | Partial       | Yes                                  | No
+Athena             | N/A               | N/A     | N/A           | N/A                                  | No
+CloudFront         | ?                 | ?       | ?             | ?                                    | ?
+DynamoDB           | N/A               | N/A     | N/A           | N/A                                  | No
+ECS                | ?                 | ?       | ?             | ?                                    | ?
+EC2                | Yes-ish           | Yes     | Partial       | N/A                                  | No
+EKS                | Partial           | Partial | No            | N/A                                  | Yes
+ElasticCache       | N/A               | N/A     | Partial       | Yes                                  | No
+ELB v1 / v2        | Yes               | Yes     | No            | N/A                                  | No
+EMR                | ?                 | ?       | ?             | ?                                    | ?
+Global Accelerator | No                | Yes     | No            | No                                   | No
+Lambda             | N/A               | N/A     | Yes           | N/A                                  | No
+Lightsail          | ?                 | ?       | ?             | ?                                    | ?
+Neptune            | ?                 | ?       | ?             | ?                                    | ?
+RDS                | Yes-ish           | Yes     | No            | N/A                                  | No
+Redshift           | Yes-ish           | Yes     | No            | N/A                                  | No
+S3 / SNS / SQS     | N/A               | N/A     | N/A           | N/A                                  | No
 
-Additionally, as [Arkadiy Tetelman](https://github.com/arkadiyt) previously [noted](https://github.com/arkadiyt/aws_public_ips/blob/bb973055c1b8a14af6dbb057aa26cfe0a2ab47c9/lib/aws_public_ips/cli.rb#L5-L39),the following services are managed by AWS such that they are of no concern when it comes to network accessible endpoints:
-- Athena
-- DynamoDB
-- ElasticCache
-- S3
-- SNS
-- SQS
+
+TBD:
+- CloudFront
+- ECS
+- EMR
+- Lightsail
+- Neptune
 
 ### API Gateway
 
@@ -526,7 +533,9 @@ Note: [Requiring a lambda lives in a customer-owned VPC](https://github.com/Scal
 
 ### RDS
 
-???
+Summary: No IGW, no problem.
+
+Same as EC2.
 
 ### Redshift
 
@@ -535,7 +544,7 @@ Summary: No IGW, no problem.
 The ElasticIp argument in both [CreateCluster](https://docs.aws.amazon.com/redshift/latest/APIReference/API_CreateCluster.html) and [ModifyCluster](https://docs.aws.amazon.com/redshift/latest/APIReference/API_ModifyCluster.html) says,
 "The cluster must be provisioned in EC2-VPC [as oppsosed to EC2-Classic, I assume] and publicly-accessible through an Internet gateway."
 
-_Based on this, I am concluding that no IGW [or possibly no public subnets] would make it so that you cannot access a Redshift cluster. I am not testing this, however, since it would be too expensive._ EC2 does not require an instance be in a public subnet to assign an EIP to it, so it would be odd for Redshift to, however RDS documentation says something [similar](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html#USER_VPC.Hiding).
+_Based on this, I am concluding that no IGW / no public subnets] would make it so that you cannot access a Redshift cluster. I am not testing this, however, since it would be too expensive._ EC2 does not require an instance be in a public subnet to assign an EIP to it, so it would be odd for Redshift to, however RDS [documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.DBInstance.Modifying.html) says something [similar](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html#USER_VPC.Hiding).
 
 As further evidence, [Instructions for turning a private cluster public](https://repost.aws/knowledge-center/redshift-cluster-private-public) state: "Note: An Elastic IP address is required. If you do not choose one, an address will be randomly assigned to you."
 
