@@ -341,15 +341,19 @@ This is  <font size="+2"><strong>one mole</strong></font> we just whacked. There
 
 Let's see if we can list every possible mole that can pop up.
 
-Creation of load balancer:
+Creation of load balancer in public subnet:
 
-...TODO...
+![alt text](https://i.imgur.com/GarWehc.gif)
 
 Creation of instance in public subnet:
 
 ![alt text](https://i.imgur.com/1e4M8z4.gif)
 
-Target group of load balancer
+Creation of public instance in private subnet using `ec2:AssociatePublicIpAddress`:
+
+![alt text](https://i.imgur.com/iWE1bzH.gif)
+
+EC2 added as Target group of load balancer
 
 ![alt text](https://i.imgur.com/gyXZz2E.gif)
 
