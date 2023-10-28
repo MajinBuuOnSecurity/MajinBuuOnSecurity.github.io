@@ -258,6 +258,8 @@ Let me know how it goes limiting your Internet-exposed attack surface in an easy
 
 You might still get breached, but hopefully in a more interesting way.
 
+TODO: See Parts 2 and 3 a more comprehensive view of AWS services and for what to do in legacy accounts.
+
 ![alt text](https://media.tenor.com/YrcU9HOzqmUAAAAC/majin-buu-clap.gif)
 
 ## Footnotes
