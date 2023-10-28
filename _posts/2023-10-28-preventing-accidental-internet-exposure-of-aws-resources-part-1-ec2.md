@@ -4,11 +4,7 @@ toc: true
 title: "Preventing Accidental Internet-Exposure of AWS Resources (Part 1: EC2)"
 ---
 
-
-Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. This three-part series walks through the different ways to mitigate that risk.
-
-<!-- [^1]: See [this post](https://maia.crimew.gay/posts/how-to-hack-an-airline/) for an example breach, one of many [AWS customer security incidents](https://github.com/ramimac/aws-customer-security-incidents#background). -->
-
+[Many AWS customers have suffered breaches](https://github.com/ramimac/aws-customer-security-incidents#background) due to exposing resources to the Internet by accident. This three-part series walks through the different ways to mitigate that risk.
 
 ## About The Problem
 
