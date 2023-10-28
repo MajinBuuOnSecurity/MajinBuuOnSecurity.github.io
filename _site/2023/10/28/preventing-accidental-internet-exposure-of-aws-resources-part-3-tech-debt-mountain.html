@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Preventing Accidental Internet-Exposure of AWS Resources (Part 3: Tech Debt Mountain) | Majin Buu on Security</title>
+<meta name="generator" content="Jekyll v3.9.3" />
+<meta property="og:title" content="Preventing Accidental Internet-Exposure of AWS Resources (Part 3: Tech Debt Mountain)" />
+<meta name="author" content="Majin Buu" />
+<meta property="og:locale" content="en" />
+<meta name="description" content="What if you have a giant monolithic account with a mix of private and public assets to which you didn’t apply preventative design principles to?" />
+<meta property="og:description" content="What if you have a giant monolithic account with a mix of private and public assets to which you didn’t apply preventative design principles to?" />
+<link rel="canonical" href="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-3-tech-debt-mountain.html" />
+<meta property="og:url" content="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-3-tech-debt-mountain.html" />
+<meta property="og:site_name" content="Majin Buu on Security" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2023-10-28T00:00:00-07:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Preventing Accidental Internet-Exposure of AWS Resources (Part 3: Tech Debt Mountain)" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"What if you have a giant monolithic account with a mix of private and public assets to which you didn’t apply preventative design principles to?","headline":"Preventing Accidental Internet-Exposure of AWS Resources (Part 3: Tech Debt Mountain)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-3-tech-debt-mountain.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-3-tech-debt-mountain.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+
+
+<!-- Google Fonts -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open%20Sans|Roboto|Roboto%20Slab|Inconsolata|Dancing%20Script|Noto%20Sans%20SC|Noto%20Sans%20TC|Noto%20Serif%20SC|Noto%20Serif%20TC|Ma%20Shan%20Zheng">
+
+<link rel="stylesheet" href="/assets/css/main.css">
+<link rel="stylesheet" href="/assets/css/skin.css">
+
+<script async src="https://use.fontawesome.com/releases/v5.0.12/js/all.js"></script>
+
+
+
+
+  </head>
+
+  <body>
+    <div class="site-container">
+      <header class="site-header">
+        <div class="wrapper">
+  <script>
+    function clickSidebarButton() {
+      const elem = document.getElementById("site-sidebar")
+      if (elem.style.display == "none" || elem.style.display == "") {
+        elem.style.display = "block";
+      } else {
+        elem.style.display = "none";
+      }
+    }
+  </script>
+  <a class="site-sidebar-button" onclick="clickSidebarButton()"><i class="far fa-user"></i>
+  </a>
+
+  <a class="site-title" rel="author" href="/">Majin Buu on Security</a>
+
+  
+    <nav class="site-nav">
+      <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+      <label for="nav-trigger" title="nav-trigger">
+        <span class="menu-icon">
+          <svg viewBox="0 0 18 15" width="18px" height="15px">
+            <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+          </svg>
+        </span>
+      </label>
+
+      <ul class="trigger">
+              <li><a class="" href="/about/">About</a></li>
+            
+              <li><a class="" href="/posts/">Posts</a></li>
+            </ul>
+    </nav>
+  
+</div>
+
+      </header>
+      
+      <div class="site-body wrapper">
+        <aside class="site-sidebar" id="site-sidebar">
+          
+            <h3 class="toc-title">Table of Contents</h3>
+<nav class="toc-nav">
+  <ul class="toc">
+  <li><a href="#stopping-the-bleeding">Stopping The Bleeding</a>
+    <ul>
+      <li><a href="#iam-protection-rings">IAM Protection Rings</a></li>
+      <li><a href="#how-it-happens">How It Happens</a></li>
+      <li><a href="#how-to-stop-it">How To Stop It</a></li>
+    </ul>
+  </li>
+  <li><a href="#faq">FAQ</a></li>
+  <li><a href="#open-questions">Open Questions</a></li>
+  <li><a href="#footnotes">Footnotes</a></li>
+</ul>
+
+</nav>
+
+          
+        </aside>
+        <main class="site-main" id="site-main" aria-label="Content" tabindex="1">
+          <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+
+    <h1 class="post-title p-name" itemprop="name headline">Preventing Accidental Internet-Exposure of AWS Resources (Part 3: Tech Debt Mountain)</h1>
+    <p class="post-meta"><time class="dt-published" datetime="2023-10-28T00:00:00-07:00" itemprop="datePublished">
+        Oct 28, 2023
+      </time></p>
+
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>What if you have a giant monolithic account with a mix of private and public assets to which you didn’t apply preventative design principles to?</p>
+
+<h2 id="stopping-the-bleeding">Stopping The Bleeding</h2>
+
+<p>All hope is not lost, but you and I will need to play <a href="https://www.youtube.com/watch?v=iqihTaHblzM">whack-a-mole</a> together.</p>
+
+<p><img src="https://media.tenor.com/hGclJ34JeSIAAAAC/one-punch.gif" alt="alt text" /></p>
+
+<h3 id="iam-protection-rings">IAM Protection Rings</h3>
+
+<p>Think about your IAM roles as <a href="https://en.wikipedia.org/wiki/Protection_ring">privilege rings</a> in x86:</p>
+
+<p><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Priv_rings.svg/1350px-Priv_rings.svg.png" alt="drawing" width="500" /></p>
+
+<p>In AWS, rings 1 through 3 can be different types of IAM roles:</p>
+
+<ul>
+  <li>Ring 0 is SCPs</li>
+  <li>Ring 1 can make public-facing resources</li>
+  <li>Ring 2 needs to e.g. create load balancers, but none should be Internet-facing.</li>
+  <li>Ring 3 needs to e.g. create EC2 instances, but none should be Internet-facing.</li>
+</ul>
+
+<p>With an SCP banning <code class="language-plaintext highlighter-rouge">ec2:CreateInternetGateway</code>, rings 1 through 3 cannot create Internet-facing assets no matter what, as ring 0 prevents them – but without this, we need to play IAM games.</p>
+
+<h4 id="supporting-ring-3-with-runinstances">Supporting Ring 3 with RunInstances</h4>
+
+<p>For Ring 3, we should be able to allow the role to call <code class="language-plaintext highlighter-rouge">ec2:RunInstances</code>, under the condition that <a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys"><code class="language-plaintext highlighter-rouge">ec2:AssociatePublicIpAddress</code></a> is <code class="language-plaintext highlighter-rouge">false</code>.</p>
+
+<p>Except that is insufficient: if the <a href="https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/run-instances.html">subnet given</a> has <a href="https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/modify-subnet-attribute.html#options"><code class="language-plaintext highlighter-rouge">"map-public-ip-on-launch"</code></a> set to true, the EC2 will get a public IP.</p>
+
+<p>So we need to allowlist the subnets that have that attribute set to false, by adding the condition that <a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys"><code class="language-plaintext highlighter-rouge">ec2:SubnetID</code></a> equals an ID on the allowlist.</p>
+
+<p>Maintaining such a list of opaque IDs would be tedious, so in Terraform we can use a data source to grab them:</p>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">data</span> <span class="s">"aws_subnets"</span> <span class="s">"public"</span> <span class="p">{</span>
+ <span class="n">filter</span> <span class="p">{</span>
+   <span class="n">name</span> <span class="o">=</span> <span class="s">"map-public-ip-on-launch"</span>
+   <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="no">false</span><span class="p">]</span>
+ <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Except that is insufficient: as it does not read from every region.<sup id="fnref:1404" role="doc-noteref"><a href="#fn:1404" class="footnote" rel="footnote">1</a></sup></p>
+
+<p>So, we need to write <a href="https://gist.github.com/MajinBuuOnSecurity/cb6b4689b47f555a2324c3f33da8e7eb#file-public_subnets-go-L172-L181">our own custom Terraform provider</a> to iterate through all regions.</p>
+
+<p>Finally, we can create an <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document"><code class="language-plaintext highlighter-rouge">aws_iam_policy_document</code></a><sup id="fnref:1427" role="doc-noteref"><a href="#fn:1427" class="footnote" rel="footnote">2</a></sup> similar to the following abbreviated<sup id="fnref:1428" role="doc-noteref"><a href="#fn:1428" class="footnote" rel="footnote">3</a></sup> policy:</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">data</span> <span class="s">"private_subnets"</span> <span class="s">"subnets"</span> <span class="p">{</span>
+  <span class="n">regions</span> <span class="o">=</span> <span class="k">var</span><span class="o">.</span><span class="n">regions_in_use</span>
+<span class="p">}</span>
+
+<span class="n">data</span> <span class="s">"aws_iam_policy_document"</span> <span class="s">"allow_private_subnets"</span> <span class="p">{</span>
+  <span class="n">statement</span> <span class="p">{</span>
+    <span class="n">sid</span> <span class="o">=</span> <span class="s">"AllowSubnetConds"</span>
+
+    <span class="n">actions</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="s">"ec2:RunInstances"</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="n">effect</span> <span class="o">=</span> <span class="s">"Allow"</span>
+
+    <span class="n">resources</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="s">"arn:aws:ec2:*:*:subnet/*"</span>
+    <span class="p">]</span>
+
+    <span class="n">condition</span> <span class="p">{</span>
+      <span class="n">test</span>     <span class="o">=</span> <span class="s">"StringEquals"</span>
+      <span class="n">variable</span> <span class="o">=</span> <span class="s">"ec2:SubnetID"</span>
+
+      <span class="n">values</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">private_subnets</span><span class="o">.</span><span class="n">subnets</span><span class="o">.</span><span class="n">ids</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="n">statement</span> <span class="p">{</span>
+    <span class="n">sid</span> <span class="o">=</span> <span class="s">"AllowENIConds"</span>
+
+    <span class="n">actions</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="s">"ec2:RunInstances"</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="n">effect</span> <span class="o">=</span> <span class="s">"Allow"</span>
+
+    <span class="n">resources</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="s">"arn:aws:ec2:*:*:network-interface/*"</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="n">condition</span> <span class="p">{</span>
+      <span class="n">test</span>     <span class="o">=</span> <span class="s">"Bool"</span>
+      <span class="n">variable</span> <span class="o">=</span> <span class="s">"ec2:AssociatePublicIpAddress"</span>
+
+      <span class="n">values</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s">"false"</span><span class="p">,</span>
+      <span class="p">]</span>
+    <span class="p">}</span>
+
+    <span class="n">condition</span> <span class="p">{</span>
+      <span class="n">test</span>     <span class="o">=</span> <span class="s">"StringEquals"</span>
+      <span class="n">variable</span> <span class="o">=</span> <span class="s">"ec2:Subnet"</span>
+
+      <span class="n">values</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">private_subnets</span><span class="o">.</span><span class="n">subnets</span><span class="o">.</span><span class="n">arns</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now, when someone in Ring 1 or 2 creates a new subnet, they can also apply this dynamic policy so Ring 3 can automatically launch instances in it.</p>
+
+<p>This is  <font size="+2"><strong>one mole</strong></font> we just whacked. There are many others. This is What Bad Looks Like.</p>
+
+<h3 id="how-it-happens">How It Happens</h3>
+
+<p>Let’s see if we can list every possible mole that can pop up.</p>
+
+<p>Creation of load balancer in public subnet:</p>
+
+<p><img src="https://i.imgur.com/GarWehc.gif" alt="alt text" /></p>
+
+<p>Creation of instance in public subnet:</p>
+
+<p><img src="https://i.imgur.com/1e4M8z4.gif" alt="alt text" /></p>
+
+<p>Creation of public instance in private subnet using <code class="language-plaintext highlighter-rouge">ec2:AssociatePublicIpAddress</code>:</p>
+
+<p><img src="https://i.imgur.com/iWE1bzH.gif" alt="alt text" /></p>
+
+<p>EC2 added as Target group of load balancer</p>
+
+<p><img src="https://i.imgur.com/gyXZz2E.gif" alt="alt text" /></p>
+
+<p>Lambda gets put as target</p>
+
+<p>…TODO…</p>
+
+<p>IP gets put as target</p>
+
+<p>…TODO…</p>
+
+<p>EIP gets associated with ENI</p>
+
+<p>…TODO…</p>
+
+<p>EIP gets associated with EC2</p>
+
+<p>…TODO…</p>
+
+<p>TODO: Can I edit the scheme of a load balancer? It doesn’t look like it, but I’ll try.</p>
+
+<h3 id="how-to-stop-it">How To Stop It</h3>
+
+<p>Banning IAM Actions</p>
+<ul>
+  <li>Cannot create Load Balancers</li>
+  <li>Cannot create EIPs</li>
+  <li>Cannot modify target groups</li>
+  <li>Cannot associate EIPs</li>
+</ul>
+
+<p>Banning IAM Actions Conditionally</p>
+<ul>
+  <li>Cannot touch public subnets</li>
+  <li>Cannot <code class="language-plaintext highlighter-rouge">ec2:RunInstances</code> with</li>
+  <li>Cannot modify target groups of public load balancers</li>
+</ul>
+
+<h2 id="faq">FAQ</h2>
+
+<p>TODO</p>
+
+<h2 id="open-questions">Open Questions</h2>
+
+<ul>
+  <li>TODO</li>
+</ul>
+
+<h2 id="footnotes">Footnotes</h2>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1404" role="doc-endnote">
+      <p>Even if it did, <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/subnets"><code class="language-plaintext highlighter-rouge">"aws_subnets"</code></a> is one of the <a href="https://github.com/hashicorp/terraform/issues/16380#issuecomment-418476841">better</a> data sources. E.g. <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/lb">aws_lb</a> and <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/lbs">aws_lbs</a> do not have filters, and the latter fails if there are none. <a href="#fnref:1404" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:1427" role="doc-endnote">
+      <p>See <a href="https://gist.github.com/MajinBuuOnSecurity/205273d308435f8d4a52759836aeb9e5">this gist</a> for a denylist example. <a href="#fnref:1427" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:1428" role="doc-endnote">
+      <p>If going with an allowlist approach, you also need statements that cover all the other resource types (image, instance, security-group, volume etc.) <a href="#fnref:1428" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+
+  </div>
+
+  <footer class="post-footer">
+    
+
+    
+
+    <nav class="post-pagination" role="navigation">
+      
+        <a class="post-previous" href="/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-beyond-ec2.html">
+          <h4 class="post-pagination-label">Prev</h4>
+          <span class="post-pagination-title">
+            <i class="fas fa-arrow-left"></i> Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Beyond EC2)
+
+          </span>
+        </a>
+      
+
+      
+    </nav>
+  </footer>
+
+  
+  
+</article>
+
+          <footer class="site-footer">
+            <div class="footer-col-wrapper">
+
+  <div class="footer-col">
+    <div class="copyright">
+      
+      
+      
+      
+      <p>Copyright © 2023 Majin Buu; All rights reserved.</p>
+      
+    </div>
+  </div>
+
+  <div class="footer-col">
+    <p>Let me know via email if you have any feedback on this site.</p>
+  </div>
+</div>
+
+          </footer>        </main>
+      </div>
+    </div>
+  </body>
+
+</html>
