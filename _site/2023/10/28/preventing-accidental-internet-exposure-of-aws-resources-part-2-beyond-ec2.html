@@ -88,10 +88,10 @@
             <h3 class="toc-title">Table of Contents</h3>
 <nav class="toc-nav">
   <ul class="toc">
-  <li><a href="#additional-mitigations-required">Additional Mitigations Required</a>
+  <li><a href="#additional-mitigations-required">Additional Mitigations Required</a></li>
+  <li><a href="#mitigation-types">Mitigation Types</a></li>
+  <li><a href="#mitigations-per-service">Mitigations Per Service</a>
     <ul>
-      <li><a href="#mitigation-types">Mitigation Types</a></li>
-      <li><a href="#mitigations-per-service">Mitigations Per Service</a></li>
       <li><a href="#api-gateway">API Gateway</a></li>
       <li><a href="#cloudfront">CloudFront</a></li>
       <li><a href="#ecs">ECS</a></li>
@@ -134,11 +134,13 @@
 
 <p>The primary way to mitigate this is to deploy an allowlist strategy for IAM service prefixes, this limits the amount of AWS services you need to know in-depth.</p>
 
+<p>TODO: Show what this looks like.</p>
+
 <p>For sandbox accounts, this may not be realistic, so you will need to manually maintain a deny list of these IAM actions.<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">1</a></sup></p>
 
 <p>See <a href="https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access">https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access</a><sup id="fnref:11245" role="doc-noteref"><a href="#fn:11245" class="footnote" rel="footnote">2</a></sup> for a high-level list of actions. I’d encourage you to cut a PR to that repository if you know of a service that is not listed there, I will put extra details in this post about those actions.</p>
 
-<h3 id="mitigation-types">Mitigation Types</h3>
+<h2 id="mitigation-types">Mitigation Types</h2>
 
 <h4 id="no-public-subnets">No Public Subnets</h4>
 
@@ -156,7 +158,7 @@
 
 <p>TODO</p>
 
-<h3 id="mitigations-per-service">Mitigations Per Service</h3>
+<h2 id="mitigations-per-service">Mitigations Per Service</h2>
 
 <table>
   <thead>
@@ -299,7 +301,23 @@
       <td>No</td>
     </tr>
     <tr>
-      <td>S3 / SNS / SQS</td>
+      <td>S3</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>SNS</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>SQS</td>
       <td>N/A</td>
       <td>N/A</td>
       <td>N/A</td>

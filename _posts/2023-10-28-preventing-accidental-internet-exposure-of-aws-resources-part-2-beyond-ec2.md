@@ -12,6 +12,8 @@ Sadly there are many AWS services that do not require an IGW to make a resource 
 
 The primary way to mitigate this is to deploy an allowlist strategy for IAM service prefixes, this limits the amount of AWS services you need to know in-depth.
 
+TODO: Show what this looks like.
+
 For sandbox accounts, this may not be realistic, so you will need to manually maintain a deny list of these IAM actions.[^1424]
 
 [^1424]: Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, nuking) regularly and only have public data in them.
@@ -20,7 +22,7 @@ See [https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-b
 
 [^11245]: Special thanks to [Arkadiy Tetelman](https://github.com/arkadiyt) too, who previously [noted](https://github.com/arkadiyt/aws_public_ips/blob/bb973055c1b8a14af6dbb057aa26cfe0a2ab47c9/lib/aws_public_ips/cli.rb#L5-L39) some of these.
 
-### Mitigation Types
+## Mitigation Types
 
 #### No Public Subnets
 
@@ -38,7 +40,7 @@ TODO
 
 TODO
 
-### Mitigations Per Service
+## Mitigations Per Service
 
 Service            | No Public Subnets | No IGW  | Condition Key | Condition Key + Resource Type Limits | Need To Ban
 -------------------|-------------------|---------|---------------|--------------------------------------|------------
@@ -58,8 +60,9 @@ Lightsail          | ?                 | ?       | ?             | ?            
 Neptune            | ?                 | ?       | ?             | ?                                    | ?
 RDS                | Yes-ish           | Yes     | No            | N/A                                  | No
 Redshift           | Yes-ish           | Yes     | No            | N/A                                  | No
-S3 / SNS / SQS     | N/A               | N/A     | N/A           | N/A                                  | No
-
+S3                 | N/A               | N/A     | N/A           | N/A                                  | No
+SNS                | N/A               | N/A     | N/A           | N/A                                  | No
+SQS                | N/A               | N/A     | N/A           | N/A                                  | No
 
 TBD:
 - CloudFront
