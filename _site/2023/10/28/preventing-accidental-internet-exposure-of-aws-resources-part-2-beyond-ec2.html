@@ -90,6 +90,7 @@
   <ul class="toc">
   <li><a href="#additional-mitigations-required">Additional Mitigations Required</a>
     <ul>
+      <li><a href="#mitigation-types">Mitigation Types</a></li>
       <li><a href="#mitigations-per-service">Mitigations Per Service</a></li>
       <li><a href="#api-gateway">API Gateway</a></li>
       <li><a href="#cloudfront">CloudFront</a></li>
@@ -136,6 +137,24 @@
 <p>For sandbox accounts, this may not be realistic, so you will need to manually maintain a deny list of these IAM actions.<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">1</a></sup></p>
 
 <p>See <a href="https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access">https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access</a><sup id="fnref:11245" role="doc-noteref"><a href="#fn:11245" class="footnote" rel="footnote">2</a></sup> for a high-level list of actions. I’d encourage you to cut a PR to that repository if you know of a service that is not listed there, I will put extra details in this post about those actions.</p>
+
+<h3 id="mitigation-types">Mitigation Types</h3>
+
+<h4 id="no-public-subnets">No Public Subnets</h4>
+
+<p>TODO</p>
+
+<h4 id="no-igw">No IGW</h4>
+
+<p>TODO</p>
+
+<h4 id="condition-key">Condition Key</h4>
+
+<p>TODO</p>
+
+<h4 id="condition-key--resource-type-limits">Condition Key + Resource Type Limits</h4>
+
+<p>TODO</p>
 
 <h3 id="mitigations-per-service">Mitigations Per Service</h3>
 

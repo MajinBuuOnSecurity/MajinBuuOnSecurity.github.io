@@ -20,6 +20,24 @@ See [https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-b
 
 [^11245]: Special thanks to [Arkadiy Tetelman](https://github.com/arkadiyt) too, who previously [noted](https://github.com/arkadiyt/aws_public_ips/blob/bb973055c1b8a14af6dbb057aa26cfe0a2ab47c9/lib/aws_public_ips/cli.rb#L5-L39) some of these.
 
+### Mitigation Types
+
+#### No Public Subnets
+
+TODO
+
+#### No IGW
+
+TODO
+
+#### Condition Key
+
+TODO
+
+#### Condition Key + Resource Type Limits
+
+TODO
+
 ### Mitigations Per Service
 
 Service            | No Public Subnets | No IGW  | Condition Key | Condition Key + Resource Type Limits | Need To Ban
