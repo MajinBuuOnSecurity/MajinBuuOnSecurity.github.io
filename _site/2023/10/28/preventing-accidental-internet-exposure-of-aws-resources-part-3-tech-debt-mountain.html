@@ -88,9 +88,14 @@
             <h3 class="toc-title">Table of Contents</h3>
 <nav class="toc-nav">
   <ul class="toc">
-  <li><a href="#iam-protection-rings">IAM Protection Rings</a></li>
+  <li><a href="#iam-protection-rings">IAM Protection Rings</a>
+    <ul>
+      <li><a href="#supporting-ring-3-with-runinstances">Supporting Ring 3 with RunInstances</a></li>
+    </ul>
+  </li>
   <li><a href="#how-it-happens">How It Happens</a></li>
   <li><a href="#how-to-stop-it">How To Stop It</a></li>
+  <li><a href="#footnotes">Footnotes</a></li>
 </ul>
 
 </nav>
@@ -114,7 +119,7 @@
 
 <p><img src="https://i.imgur.com/t0Kx9jS.png" alt="alt text" /></p>
 
-<h3 id="iam-protection-rings">IAM Protection Rings</h3>
+<h2 id="iam-protection-rings">IAM Protection Rings</h2>
 
 <p>Think about your IAM roles as <a href="https://en.wikipedia.org/wiki/Protection_ring">privilege rings</a> in x86:</p>
 
@@ -135,7 +140,7 @@
 
 <p>Next we will dive deep into one use-case, then list all use-cases, then summarize how to solve them.</p>
 
-<h4 id="supporting-ring-3-with-runinstances">Supporting Ring 3 with RunInstances</h4>
+<h3 id="supporting-ring-3-with-runinstances">Supporting Ring 3 with RunInstances</h3>
 
 <p>For Ring 3, we should be able to allow the role to call <code class="language-plaintext highlighter-rouge">ec2:RunInstances</code>, under the condition that <a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys"><code class="language-plaintext highlighter-rouge">ec2:AssociatePublicIpAddress</code></a> is <code class="language-plaintext highlighter-rouge">false</code>.</p>
 
@@ -220,7 +225,7 @@
 
 <p>This is  <font size="+2"><strong>one mole</strong></font> we just whacked. There are many others. This is What Bad Looks Like.</p>
 
-<h3 id="how-it-happens">How It Happens</h3>
+<h2 id="how-it-happens">How It Happens</h2>
 
 <p>Let’s see if we can list every possible mole that can pop up.</p>
 
@@ -256,7 +261,7 @@
 
 <p><img src="https://i.imgur.com/iWE1bzH.gif" alt="alt text" /></p>
 
-<h3 id="how-to-stop-it">How To Stop It</h3>
+<h2 id="how-to-stop-it">How To Stop It</h2>
 
 <p>Banning IAM Actions</p>
 <ul>

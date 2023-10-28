@@ -8,7 +8,7 @@ When addressing a vast, monolithic account housing a blend of private and public
 
 ![alt text](https://i.imgur.com/t0Kx9jS.png)
 
-### IAM Protection Rings
+## IAM Protection Rings
 
 Think about your IAM roles as [privilege rings](https://en.wikipedia.org/wiki/Protection_ring) in x86:
 
@@ -27,7 +27,7 @@ With an SCP banning `ec2:CreateInternetGateway`, rings 1 through 3 cannot create
 
 Next we will dive deep into one use-case, then list all use-cases, then summarize how to solve them.
 
-#### Supporting Ring 3 with RunInstances
+### Supporting Ring 3 with RunInstances
 
 For Ring 3, we should be able to allow the role to call `ec2:RunInstances`, under the condition that [`ec2:AssociatePublicIpAddress`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys) is `false`. 
 
@@ -120,7 +120,7 @@ Now, when someone in Ring 1 or 2 creates a new subnet, they can also apply this 
 
 This is  <font size="+2"><strong>one mole</strong></font> we just whacked. There are many others. This is What Bad Looks Like.
 
-### How It Happens
+## How It Happens
 
 Let's see if we can list every possible mole that can pop up.
 
@@ -156,7 +156,7 @@ This is not much of an issue, but if can prevent it 'for free' anyway: Creation 
 
 ![alt text](https://i.imgur.com/iWE1bzH.gif)
 
-### How To Stop It
+## How To Stop It
 
 Banning IAM Actions
 - Cannot create Load Balancers
