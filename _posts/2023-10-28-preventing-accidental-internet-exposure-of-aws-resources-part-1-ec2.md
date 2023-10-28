@@ -4,33 +4,23 @@ toc: true
 title: "Preventing Accidental Internet-Exposure of AWS Resources (Part 1: EC2)"
 ---
 
-Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. [^1] This post walks through the different ways to mitigate that risk.
 
-[^1]: See [this post](https://maia.crimew.gay/posts/how-to-hack-an-airline/) for an example breach, one of many [AWS customer security incidents](https://github.com/ramimac/aws-customer-security-incidents#background).
+Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. This three-part series walks through the different ways to mitigate that risk.
 
+<!-- [^1]: See [this post](https://maia.crimew.gay/posts/how-to-hack-an-airline/) for an example breach, one of many [AWS customer security incidents](https://github.com/ramimac/aws-customer-security-incidents#background). -->
 
-## What Good Looks Like
-
-S3 is far simpler to secure than resources in a VPC, so let's use that as an example to get a sense of what we are aiming for.
-
-In your multi-account AWS strategy, most accounts should have [account-wide public block access for S3](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_account_public_access_block) enabled at account creation time and have that control made immutable [via SCP](https://summitroute.com/blog/2020/03/25/aws_scp_best_practices/#protect-security-settings), eliminating the possibility of S3 public data leaks. 
-
-When a public S3 bucket is needed, ideally it would be made in a special `S3 Public Resources` account (under a separate OU) where only public S3 buckets can live.[^2]
-
-[^2]: [New S3 buckets have Public Access Block by default now](https://aws.amazon.com/about-aws/whats-new/2022/12/amazon-s3-automatically-enable-block-public-access-disable-access-control-lists-buckets-april-2023/), but being able to look at your AWS Org structure from a thousand-foot view and know which subtree can have public S3 buckets is invaluable.
-
-A simplified and idealistic[^2154] AWS organization structure supporting this is:
-
-![alt text](https://i.imgur.com/bPIKZoC.png)
-
-[^2154]: You may think this architecture is unrealistic for your company, and you might be right.
 
 ## About The Problem
+
+TODO: Make this way better.
 
 The question this post answers is: How do you implement the same strategy for resources in a VPC (EC2 instances, ELBs, RDS databases, etc.)?
 
 These are resources that can be found by an attacker via traditional public IP network scanning or [searching Shodan](https://maia.crimew.gay/posts/how-to-hack-an-airline/).
 
+Look at your AWS Org structure from a thousand-foot view and know which subtree can have public S3 buckets is invaluable.
+
+![alt text](https://i.imgur.com/bPIKZoC.png)
 
 This is more complicated, because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).
 
@@ -48,6 +38,7 @@ Or:
 ![alt text](https://i.imgur.com/gyXZz2E.gif)
 
 There are many ways to expose resources to the Internet like this, but the key insight is that they all require an Internet Gateway (IGW).
+
 
 ## Preventing by Design
 
@@ -98,6 +89,8 @@ On the other hand, they also say:
 Sending huge amounts of data through a NAT Gateway should be avoided anyway.
 [S3](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html), [Splunk](https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html), [Honeycomb](https://docs.honeycomb.io/integrations/aws/aws-privatelink/), and similar companies[^1350] have VPC endpoints you can utilize to lower NAT Gateway data processing charges.
 
+TODO: Insert visualization around GB of Data Transferred and # of NAT GWs that need to be eliminated to justify the TGW cost.
+
 [^1350]: There are some companies with agents meant to be deployed on EC2s that do not offer a VPC endpoint, [perhaps](https://sso.tax/) a [wall](https://fido.fail/) of [shame](https://github.com/SummitRoute/imdsv2_wall_of_shame#imdsv2-wall-of-shame) can be made.
 
 ### Option 2: Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering
@@ -142,7 +135,7 @@ Being limited to private subnets helps with 2 problems:
 
 An engineer can still make Internet-facing assets with e.g.
 
-- The `ec2:AssociatePublicIpAddress` condition key
+<!-- - The `ec2:AssociatePublicIpAddress` condition key -->
 - Global Accelerator
 - Any future services that treat the presence of an IGW as a welcome mat
 
@@ -209,13 +202,13 @@ The problem is the NAT Gateway then needs an IGW to communicate with the destina
 
 ### Tradeoffs
 
-Criteria                   | TGW                   | VPC Sharing           | IPv6-Only             | PrivateLink + Egress Filtering
--------------------------- | --------------------- | --------------------- | --------------------- | ---------------------
-AWS Billing Cost           | <span style="color:red">Highest</span> | Lowest                              | Low                                   | Medium
-Complexity*                | Medium                                 | Low                                 | Medium                                | <span style="color:red">High</span>
-Scalability*               | High                                   | Low                                 | Medium                                | High
-Flexibility*               | High                                   | Medium                              | <span style="color:red">Lowest</span> | High
-Will Prevent Org Migration | False                                  | <span style="color:red">True</span> | False                                 | False
+Criteria                   | TGW                                    | PrivateLink + Egress Filtering      | VPC Sharing                           | IPv6-Only
+-------------------------- | ---------------------------------------| ------------------------------------| --------------------------------------| ---------
+AWS Billing Cost           | <span style="color:red">Highest</span> | Medium                              | Lowest                                | Low
+Complexity*                | Medium                                 | <span style="color:red">High</span> | Low                                   | Medium
+Scalability*               | High                                   | High                                | Low                                   | Medium
+Flexibility*               | High                                   | High                                | Medium                                | <span style="color:red">Lowest</span>
+Will Prevent Org Migration | False                                  | False                               | <span style="color:red">True</span>   | False
 
 \* = YMMV
 

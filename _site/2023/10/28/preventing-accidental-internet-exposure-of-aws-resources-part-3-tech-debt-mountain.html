@@ -12,8 +12,8 @@
 <meta property="og:title" content="Preventing Accidental Internet-Exposure of AWS Resources (Part 3: Tech Debt Mountain)" />
 <meta name="author" content="Majin Buu" />
 <meta property="og:locale" content="en" />
-<meta name="description" content="What if you have a giant monolithic account with a mix of private and public assets to which you didn’t apply preventative design principles to?" />
-<meta property="og:description" content="What if you have a giant monolithic account with a mix of private and public assets to which you didn’t apply preventative design principles to?" />
+<meta name="description" content="When addressing a vast, monolithic account housing a blend of private and public assets, how can you rectify the absence of preventative design principles?" />
+<meta property="og:description" content="When addressing a vast, monolithic account housing a blend of private and public assets, how can you rectify the absence of preventative design principles?" />
 <link rel="canonical" href="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-3-tech-debt-mountain.html" />
 <meta property="og:url" content="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-3-tech-debt-mountain.html" />
 <meta property="og:site_name" content="Majin Buu on Security" />
@@ -22,7 +22,7 @@
 <meta name="twitter:card" content="summary" />
 <meta property="twitter:title" content="Preventing Accidental Internet-Exposure of AWS Resources (Part 3: Tech Debt Mountain)" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"What if you have a giant monolithic account with a mix of private and public assets to which you didn’t apply preventative design principles to?","headline":"Preventing Accidental Internet-Exposure of AWS Resources (Part 3: Tech Debt Mountain)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-3-tech-debt-mountain.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-3-tech-debt-mountain.html"}</script>
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"When addressing a vast, monolithic account housing a blend of private and public assets, how can you rectify the absence of preventative design principles?","headline":"Preventing Accidental Internet-Exposure of AWS Resources (Part 3: Tech Debt Mountain)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-3-tech-debt-mountain.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-3-tech-debt-mountain.html"}</script>
 <!-- End Jekyll SEO tag -->
 
 
@@ -88,16 +88,9 @@
             <h3 class="toc-title">Table of Contents</h3>
 <nav class="toc-nav">
   <ul class="toc">
-  <li><a href="#stopping-the-bleeding">Stopping The Bleeding</a>
-    <ul>
-      <li><a href="#iam-protection-rings">IAM Protection Rings</a></li>
-      <li><a href="#how-it-happens">How It Happens</a></li>
-      <li><a href="#how-to-stop-it">How To Stop It</a></li>
-    </ul>
-  </li>
-  <li><a href="#faq">FAQ</a></li>
-  <li><a href="#open-questions">Open Questions</a></li>
-  <li><a href="#footnotes">Footnotes</a></li>
+  <li><a href="#iam-protection-rings">IAM Protection Rings</a></li>
+  <li><a href="#how-it-happens">How It Happens</a></li>
+  <li><a href="#how-to-stop-it">How To Stop It</a></li>
 </ul>
 
 </nav>
@@ -117,13 +110,9 @@
   </header>
 
   <div class="post-content e-content" itemprop="articleBody">
-    <p>What if you have a giant monolithic account with a mix of private and public assets to which you didn’t apply preventative design principles to?</p>
+    <p>When addressing a vast, monolithic account housing a blend of private and public assets, how can you rectify the absence of preventative design principles?</p>
 
-<h2 id="stopping-the-bleeding">Stopping The Bleeding</h2>
-
-<p>All hope is not lost, but you and I will need to play <a href="https://www.youtube.com/watch?v=iqihTaHblzM">whack-a-mole</a> together.</p>
-
-<p><img src="https://media.tenor.com/hGclJ34JeSIAAAAC/one-punch.gif" alt="alt text" /></p>
+<p><img src="https://i.imgur.com/t0Kx9jS.png" alt="alt text" /></p>
 
 <h3 id="iam-protection-rings">IAM Protection Rings</h3>
 
@@ -140,7 +129,11 @@
   <li>Ring 3 needs to e.g. create EC2 instances, but none should be Internet-facing.</li>
 </ul>
 
-<p>With an SCP banning <code class="language-plaintext highlighter-rouge">ec2:CreateInternetGateway</code>, rings 1 through 3 cannot create Internet-facing assets no matter what, as ring 0 prevents them – but without this, we need to play IAM games.</p>
+<p>With an SCP banning <code class="language-plaintext highlighter-rouge">ec2:CreateInternetGateway</code>, rings 1 through 3 cannot create Internet-facing assets no matter what, as ring 0 prevents them – but without this, we need to play IAM games resembling <a href="https://www.youtube.com/watch?v=iqihTaHblzM">whack-a-mole</a>.</p>
+
+<p><img src="https://media.tenor.com/hGclJ34JeSIAAAAC/one-punch.gif" alt="alt text" /></p>
+
+<p>Next we will dive deep into one use-case, then list all use-cases, then summarize how to solve them.</p>
 
 <h4 id="supporting-ring-3-with-runinstances">Supporting Ring 3 with RunInstances</h4>
 
@@ -239,10 +232,6 @@
 
 <p><img src="https://i.imgur.com/1e4M8z4.gif" alt="alt text" /></p>
 
-<p>Creation of public instance in private subnet using <code class="language-plaintext highlighter-rouge">ec2:AssociatePublicIpAddress</code>:</p>
-
-<p><img src="https://i.imgur.com/iWE1bzH.gif" alt="alt text" /></p>
-
 <p>EC2 added as Target group of load balancer</p>
 
 <p><img src="https://i.imgur.com/gyXZz2E.gif" alt="alt text" /></p>
@@ -263,7 +252,9 @@
 
 <p>…TODO…</p>
 
-<p>TODO: Can I edit the scheme of a load balancer? It doesn’t look like it, but I’ll try.</p>
+<p>This is not much of an issue, but if can prevent it ‘for free’ anyway: Creation of public instance in private subnet using <code class="language-plaintext highlighter-rouge">ec2:AssociatePublicIpAddress</code></p>
+
+<p><img src="https://i.imgur.com/iWE1bzH.gif" alt="alt text" /></p>
 
 <h3 id="how-to-stop-it">How To Stop It</h3>
 

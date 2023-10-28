@@ -4,7 +4,7 @@ toc: true
 title: "Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Beyond EC2)"
 ---
 
-Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. [^1] This post walks through the different ways to mitigate that risk.
+There are many AWS services that do not require a VPC to make a resource public through network access. Here we walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.
 
 ## Additional Mitigations Required
 

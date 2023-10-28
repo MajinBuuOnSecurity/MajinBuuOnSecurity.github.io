@@ -12,8 +12,8 @@
 <meta property="og:title" content="Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Beyond EC2)" />
 <meta name="author" content="Majin Buu" />
 <meta property="og:locale" content="en" />
-<meta name="description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. [^1] This post walks through the different ways to mitigate that risk." />
-<meta property="og:description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. [^1] This post walks through the different ways to mitigate that risk." />
+<meta name="description" content="There are many AWS services that do not require a VPC to make a resource public through network access. Here we walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them." />
+<meta property="og:description" content="There are many AWS services that do not require a VPC to make a resource public through network access. Here we walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them." />
 <link rel="canonical" href="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-beyond-ec2.html" />
 <meta property="og:url" content="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-beyond-ec2.html" />
 <meta property="og:site_name" content="Majin Buu on Security" />
@@ -22,7 +22,7 @@
 <meta name="twitter:card" content="summary" />
 <meta property="twitter:title" content="Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Beyond EC2)" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. [^1] This post walks through the different ways to mitigate that risk.","headline":"Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Beyond EC2)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-beyond-ec2.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-beyond-ec2.html"}</script>
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"There are many AWS services that do not require a VPC to make a resource public through network access. Here we walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.","headline":"Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Beyond EC2)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-beyond-ec2.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-beyond-ec2.html"}</script>
 <!-- End Jekyll SEO tag -->
 
 
@@ -134,7 +134,7 @@
   </header>
 
   <div class="post-content e-content" itemprop="articleBody">
-    <p>Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. [^1] This post walks through the different ways to mitigate that risk.</p>
+    <p>There are many AWS services that do not require a VPC to make a resource public through network access. Here we walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.</p>
 
 <h2 id="additional-mitigations-required">Additional Mitigations Required</h2>
 

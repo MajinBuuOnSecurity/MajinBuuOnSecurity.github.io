@@ -4,13 +4,9 @@ toc: true
 title: "Preventing Accidental Internet-Exposure of AWS Resources (Part 3: Tech Debt Mountain)"
 ---
 
-What if you have a giant monolithic account with a mix of private and public assets to which you didn’t apply preventative design principles to?
+When addressing a vast, monolithic account housing a blend of private and public assets, how can you rectify the absence of preventative design principles?
 
-## Stopping The Bleeding
-
-All hope is not lost, but you and I will need to play [whack-a-mole](https://www.youtube.com/watch?v=iqihTaHblzM) together.
-
-![alt text](https://media.tenor.com/hGclJ34JeSIAAAAC/one-punch.gif)
+![alt text](https://i.imgur.com/t0Kx9jS.png)
 
 ### IAM Protection Rings
 
@@ -25,7 +21,11 @@ In AWS, rings 1 through 3 can be different types of IAM roles:
 - Ring 2 needs to e.g. create load balancers, but none should be Internet-facing.
 - Ring 3 needs to e.g. create EC2 instances, but none should be Internet-facing.
 
-With an SCP banning `ec2:CreateInternetGateway`, rings 1 through 3 cannot create Internet-facing assets no matter what, as ring 0 prevents them -- but without this, we need to play IAM games.
+With an SCP banning `ec2:CreateInternetGateway`, rings 1 through 3 cannot create Internet-facing assets no matter what, as ring 0 prevents them -- but without this, we need to play IAM games resembling [whack-a-mole](https://www.youtube.com/watch?v=iqihTaHblzM).
+
+![alt text](https://media.tenor.com/hGclJ34JeSIAAAAC/one-punch.gif)
+
+Next we will dive deep into one use-case, then list all use-cases, then summarize how to solve them.
 
 #### Supporting Ring 3 with RunInstances
 
@@ -132,10 +132,6 @@ Creation of instance in public subnet:
 
 ![alt text](https://i.imgur.com/1e4M8z4.gif)
 
-Creation of public instance in private subnet using `ec2:AssociatePublicIpAddress`:
-
-![alt text](https://i.imgur.com/iWE1bzH.gif)
-
 EC2 added as Target group of load balancer
 
 ![alt text](https://i.imgur.com/gyXZz2E.gif)
@@ -156,8 +152,11 @@ EIP gets associated with EC2
 
 ...TODO...
 
+This is not much of an issue, but if can prevent it 'for free' anyway: Creation of public instance in private subnet using `ec2:AssociatePublicIpAddress`
 
-TODO: Can I edit the scheme of a load balancer? It doesn't look like it, but I'll try.
+![alt text](https://i.imgur.com/iWE1bzH.gif)
+
+
 
 ### How To Stop It
 
