@@ -12,8 +12,8 @@
 <meta property="og:title" content="Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Beyond EC2)" />
 <meta name="author" content="Majin Buu" />
 <meta property="og:locale" content="en" />
-<meta name="description" content="There are many AWS services that do not require a VPC to make a resource public through network access. Here we walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them." />
-<meta property="og:description" content="There are many AWS services that do not require a VPC to make a resource public through network access. Here we walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them." />
+<meta name="description" content="There are many AWS services that do not require a VPC to make a resource public through network access. Let’s walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them." />
+<meta property="og:description" content="There are many AWS services that do not require a VPC to make a resource public through network access. Let’s walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them." />
 <link rel="canonical" href="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-beyond-ec2.html" />
 <meta property="og:url" content="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-beyond-ec2.html" />
 <meta property="og:site_name" content="Majin Buu on Security" />
@@ -22,7 +22,7 @@
 <meta name="twitter:card" content="summary" />
 <meta property="twitter:title" content="Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Beyond EC2)" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"There are many AWS services that do not require a VPC to make a resource public through network access. Here we walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.","headline":"Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Beyond EC2)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-beyond-ec2.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-beyond-ec2.html"}</script>
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"There are many AWS services that do not require a VPC to make a resource public through network access. Let’s walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.","headline":"Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Beyond EC2)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-beyond-ec2.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-beyond-ec2.html"}</script>
 <!-- End Jekyll SEO tag -->
 
 
@@ -105,15 +105,6 @@
       <li><a href="#redshift">Redshift</a></li>
     </ul>
   </li>
-  <li><a href="#faq">FAQ</a>
-    <ul>
-      <li><a href="#why-is-vpc-peering-not-a-straightforward-option">Why is VPC peering not a straightforward option?</a></li>
-      <li><a href="#why-is-vpc-privatelink-not-a-straightforward-option">Why is VPC PrivateLink not a straightforward option?</a></li>
-      <li><a href="#how-do-i-access-my-machines-if-they-are-all-in-private-subnets">How do I access my machines if they are all in private subnets?</a></li>
-    </ul>
-  </li>
-  <li><a href="#open-questions">Open Questions</a></li>
-  <li><a href="#conclusion">Conclusion</a></li>
   <li><a href="#footnotes">Footnotes</a></li>
 </ul>
 
@@ -134,7 +125,7 @@
   </header>
 
   <div class="post-content e-content" itemprop="articleBody">
-    <p>There are many AWS services that do not require a VPC to make a resource public through network access. Here we walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.</p>
+    <p>There are many AWS services that do not require a VPC to make a resource public through network access. Let’s walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.</p>
 
 <h2 id="additional-mitigations-required">Additional Mitigations Required</h2>
 
@@ -417,71 +408,7 @@
 
 <p><a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonredshift.html#amazonredshift-policy-keys">No condition keys</a> exist for e.g. <code class="language-plaintext highlighter-rouge">Encrypted</code> or <code class="language-plaintext highlighter-rouge">ElasticIP</code> or <code class="language-plaintext highlighter-rouge">PubliclyAccessible</code>.</p>
 
-<h2 id="faq">FAQ</h2>
-
-<h3 id="why-is-vpc-peering-not-a-straightforward-option">Why is VPC peering not a straightforward option?</h3>
-
-<p>The short answer is that VPC peering is not transitive, so it is not designed for you to be able to ‘hop’ through an IGW via it. If you change your VPC route table to send Internet-destined traffic to a VPC peering connection, the traffic won’t pass through.</p>
-
-<p>AWS lists this under <a href="https://docs.aws.amazon.com/vpc/latest/peering/vpc-peering-basics.html#vpc-peering-limitations">VPC peering limitations</a>:</p>
-
-<blockquote>
-  <ul>
-    <li>If VPC A has an internet gateway, resources in VPC B can’t use the internet gateway in VPC A to access the Internet.</li>
-  </ul>
-</blockquote>
-
-<blockquote>
-  <ul>
-    <li>If VPC A has a NAT device that provides Internet access to subnets in VPC A, resources in VPC B can’t use the NAT device in VPC A to access the Internet.</li>
-  </ul>
-</blockquote>
-
-<p>A <a href="https://www.reddit.com/r/aws/comments/1625r2h/comment/jxxodvl">longer explanation is</a>:</p>
-
-<blockquote>
-  <p>AWS has specific design principles and limitations for VPC peering to ensure security and network integrity. One of these limitations is that edge-to-edge routing is not supported over VPC peering connections. VPC connections are specifically designed to be non-transitive.</p>
-</blockquote>
-
-<blockquote>
-  <p>This means resources in one VPC cannot access the Internet via an internet gateway or a NAT device in a peer VPC. AWS does not propagate packets destined for the Internet from one VPC to another over a peering connection, even if you try configuring NAT at the instance level.</p>
-</blockquote>
-
-<blockquote>
-  <p>The primary reason for this limitation is to maintain a clear network boundary and enforce security policies. If AWS allowed traffic from VPC B to Egress to the Internet through VPC A’s NAT gateway, it would essentially make VPC A a transit VPC, which breaks the AWS design principle of VPC peering as a non-transitive relationship.</p>
-</blockquote>
-
-<h3 id="why-is-vpc-privatelink-not-a-straightforward-option">Why is VPC PrivateLink not a straightforward option?</h3>
-
-<p>The reasoning is similar to peering: PrivateLink is not meant to be transitive.</p>
-
-<p>To dive deeper: When you make an interface VPC endpoint with AWS PrivateLink, a “<a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/requester-managed-eni.html">requester-managed network interface</a>” is created. The “requester” is AWS, as you can see by the mysterious “727180483921” account ID.</p>
-
-<p>If you try to disable “<a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics">Source/destination checking</a>” (which ensures that the ENI is either the source or the destination of any traffic it receives), you will not be able to. So traffic is dropped before it would ever travel cross-account.</p>
-
-<h3 id="how-do-i-access-my-machines-if-they-are-all-in-private-subnets">How do I access my machines if they are all in private subnets?</h3>
-
-<p>Use <a href="https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html">SSM</a>.</p>
-
-<h2 id="open-questions">Open Questions</h2>
-
-<ul>
-  <li>Are there no VPC flow logs for traffic that gets dropped due to a source/destination check on an ENI?</li>
-  <li>If there are no VPC flow logs for traffic, there won’t be any possibility of mirroring that traffic either, right?</li>
-  <li>Are there any other options for Egress that I missed?</li>
-  <li>Did I get anything wrong? I’m sure the Internet will let me know in spades.</li>
-</ul>
-
-<h2 id="conclusion">Conclusion</h2>
-
-<p>Let me know how it goes limiting your Internet-exposed attack surface in an easy to understand, secure-by-default way.</p>
-
-<p>You might still get breached, but hopefully in a more interesting way.</p>
-
-<p><img src="https://media.tenor.com/YrcU9HOzqmUAAAAC/majin-buu-clap.gif" alt="alt text" /></p>
-
 <h2 id="footnotes">Footnotes</h2>
-
 <div class="footnotes" role="doc-endnotes">
   <ol>
     <li id="fn:1424" role="doc-endnote">

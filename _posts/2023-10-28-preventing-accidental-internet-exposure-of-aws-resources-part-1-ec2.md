@@ -258,10 +258,6 @@ Let me know how it goes limiting your Internet-exposed attack surface in an easy
 
 You might still get breached, but hopefully in a more interesting way.
 
-
 ![alt text](https://media.tenor.com/YrcU9HOzqmUAAAAC/majin-buu-clap.gif)
 
 ## Footnotes
-
-   
-

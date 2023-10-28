@@ -4,7 +4,7 @@ toc: true
 title: "Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Beyond EC2)"
 ---
 
-There are many AWS services that do not require a VPC to make a resource public through network access. Here we walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.
+There are many AWS services that do not require a VPC to make a resource public through network access. Let's walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.
 
 ## Additional Mitigations Required
 
@@ -169,56 +169,5 @@ In only the [ModifyCluster](https://docs.aws.amazon.com/redshift/latest/APIRefer
 
 [No condition keys](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonredshift.html#amazonredshift-policy-keys) exist for e.g. `Encrypted` or `ElasticIP` or `PubliclyAccessible`.
 
-## FAQ
-
-### Why is VPC peering not a straightforward option?
-
-The short answer is that VPC peering is not transitive, so it is not designed for you to be able to 'hop' through an IGW via it. If you change your VPC route table to send Internet-destined traffic to a VPC peering connection, the traffic won't pass through.
-
-AWS lists this under [VPC peering limitations](https://docs.aws.amazon.com/vpc/latest/peering/vpc-peering-basics.html#vpc-peering-limitations):
-
-> - If VPC A has an internet gateway, resources in VPC B can't use the internet gateway in VPC A to access the Internet.
-
-> - If VPC A has a NAT device that provides Internet access to subnets in VPC A, resources in VPC B can't use the NAT device in VPC A to access the Internet.
-
-A [longer explanation is](https://www.reddit.com/r/aws/comments/1625r2h/comment/jxxodvl):
-
-> AWS has specific design principles and limitations for VPC peering to ensure security and network integrity. One of these limitations is that edge-to-edge routing is not supported over VPC peering connections. VPC connections are specifically designed to be non-transitive.
-
->This means resources in one VPC cannot access the Internet via an internet gateway or a NAT device in a peer VPC. AWS does not propagate packets destined for the Internet from one VPC to another over a peering connection, even if you try configuring NAT at the instance level.
-
->The primary reason for this limitation is to maintain a clear network boundary and enforce security policies. If AWS allowed traffic from VPC B to Egress to the Internet through VPC A's NAT gateway, it would essentially make VPC A a transit VPC, which breaks the AWS design principle of VPC peering as a non-transitive relationship.
-
-### Why is VPC PrivateLink not a straightforward option?
-
-The reasoning is similar to peering: PrivateLink is not meant to be transitive.
-
-To dive deeper: When you make an interface VPC endpoint with AWS PrivateLink, a "[requester-managed network interface](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/requester-managed-eni.html)" is created. The "requester" is AWS, as you can see by the mysterious "727180483921" account ID.
-
-If you try to disable "[Source/destination checking](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics)" (which ensures that the ENI is either the source or the destination of any traffic it receives), you will not be able to. So traffic is dropped before it would ever travel cross-account.
-
-### How do I access my machines if they are all in private subnets?
-
-Use [SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html).
-
-
-## Open Questions
-
-- Are there no VPC flow logs for traffic that gets dropped due to a source/destination check on an ENI?
-- If there are no VPC flow logs for traffic, there won't be any possibility of mirroring that traffic either, right?
-- Are there any other options for Egress that I missed?
-- Did I get anything wrong? I'm sure the Internet will let me know in spades.
-
-## Conclusion
-
-Let me know how it goes limiting your Internet-exposed attack surface in an easy to understand, secure-by-default way. 
-
-You might still get breached, but hopefully in a more interesting way.
-
-
-![alt text](https://media.tenor.com/YrcU9HOzqmUAAAAC/majin-buu-clap.gif)
 
 ## Footnotes
-
-   
-

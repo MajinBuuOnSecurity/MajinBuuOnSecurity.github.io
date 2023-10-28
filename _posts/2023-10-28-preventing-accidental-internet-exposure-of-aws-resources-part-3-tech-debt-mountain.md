@@ -156,8 +156,6 @@ This is not much of an issue, but if can prevent it 'for free' anyway: Creation 
 
 ![alt text](https://i.imgur.com/iWE1bzH.gif)
 
-
-
 ### How To Stop It
 
 Banning IAM Actions
@@ -170,14 +168,6 @@ Banning IAM Actions Conditionally
 - Cannot touch public subnets
 - Cannot `ec2:RunInstances` with 
 - Cannot modify target groups of public load balancers
-
-## FAQ
-
-TODO
-
-## Open Questions
-
-- TODO
 
 ## Footnotes
 
