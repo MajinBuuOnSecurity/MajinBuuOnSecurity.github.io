@@ -14,7 +14,7 @@ The question this post answers is: How do you implement the same strategy for re
 
 These are resources that can be found by an attacker via traditional public IP network scanning or [searching Shodan](https://maia.crimew.gay/posts/how-to-hack-an-airline/).
 
-Look at your AWS Org structure from a thousand-foot view and know which subtree can have public S3 buckets is invaluable.
+Look at your AWS Org structure from a thousand-foot view and know which subtree can have publicly accessible resources invaluable.
 
 ![alt text](https://i.imgur.com/bPIKZoC.png)
 
@@ -33,7 +33,7 @@ Or:
 
 ![alt text](https://i.imgur.com/gyXZz2E.gif)
 
-There are many ways to expose resources to the Internet like this, but the key insight is that they all require an Internet Gateway (IGW).
+There are many ways to expose resources to the Internet like this, but the key insight -- for EC2 at least -- is that they all require an Internet Gateway (IGW).
 
 
 ## Preventing by Design

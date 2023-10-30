@@ -88,13 +88,19 @@
             <h3 class="toc-title">Table of Contents</h3>
 <nav class="toc-nav">
   <ul class="toc">
-  <li><a href="#additional-mitigations-required">Additional Mitigations Required</a></li>
+  <li><a href="#handling-all-those-services">Handling All Those Services</a>
+    <ul>
+      <li><a href="#implementing-the-allowlist">Implementing the Allowlist</a></li>
+      <li><a href="#service-specific-mitigations">Service-Specific Mitigations</a></li>
+    </ul>
+  </li>
   <li><a href="#mitigation-types">Mitigation Types</a></li>
   <li><a href="#mitigations-per-service">Mitigations Per Service</a>
     <ul>
       <li><a href="#api-gateway">API Gateway</a></li>
       <li><a href="#cloudfront">CloudFront</a></li>
       <li><a href="#ecs">ECS</a></li>
+      <li><a href="#elb-v1--v2">ELB v1 / v2</a></li>
       <li><a href="#eks">EKS</a></li>
       <li><a href="#elasticcache">ElasticCache</a></li>
       <li><a href="#emr">EMR</a></li>
@@ -128,35 +134,77 @@
   <div class="post-content e-content" itemprop="articleBody">
     <p>There are many AWS services that do not require a VPC to make a resource public through network access. Let’s walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.</p>
 
-<h2 id="additional-mitigations-required">Additional Mitigations Required</h2>
+<h2 id="handling-all-those-services">Handling All Those Services</h2>
 
-<p>Sadly there are many AWS services that do not require an IGW to make a resource public through network access.</p>
+<p>Each of the hundreds of AWS services have their on nuances and possible security problems. The primary way to mitigate this risk is to deploy an allowlist strategy for IAM service prefixes, which limits the amount of AWS services you need to know in-depth.</p>
 
-<p>The primary way to mitigate this is to deploy an allowlist strategy for IAM service prefixes, this limits the amount of AWS services you need to know in-depth.</p>
+<p>Once you have this allowlist, you can check the <a href="#mitigations-per-service">Mitigations Per Service</a> section and ensure you have the proper mitigations in place.</p>
 
-<p>TODO: Show what this looks like.</p>
+<h3 id="implementing-the-allowlist">Implementing the Allowlist</h3>
 
-<p>For sandbox accounts, this may not be realistic, so you will need to manually maintain a deny list of these IAM actions.<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">1</a></sup></p>
+<p>When a customer requests an AWS account<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">1</a></sup>, the fill-out form should ask them a set of questions including, “Which AWS services and regions will you be using?”</p>
 
-<p>See <a href="https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access">https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access</a><sup id="fnref:11245" role="doc-noteref"><a href="#fn:11245" class="footnote" rel="footnote">2</a></sup> for a high-level list of actions. I’d encourage you to cut a PR to that repository if you know of a service that is not listed there, I will put extra details in this post about those actions.</p>
+<p>This will end up translating to e.g.</p>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">locals</span> <span class="p">{</span>
+  <span class="n">services</span> <span class="o">=</span> <span class="p">[</span><span class="s">"dynamodb"</span><span class="p">,</span> <span class="s">"ec2"</span><span class="p">,</span> <span class="s">"s3"</span><span class="p">]</span>
+  <span class="n">regions</span> <span class="o">=</span> <span class="p">[</span><span class="s">"us-east-2"</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Which will further be passed into a configuration module, an SCP module, or both, for the subaccount.</p>
+
+<h3 id="service-specific-mitigations">Service-Specific Mitigations</h3>
+
+<p>Rather than simply giving the subaccount admin IAM role <code class="language-plaintext highlighter-rouge">"ec2:*"</code> and calling it a day, you should go further and ask service-specific questions.</p>
+
+<ul>
+  <li>“Do you need publicly accessible EC2 resources? If so, please explain why.”</li>
+  <li>“Can you use our Terraform module for launching EC2? If not, please explain why.”</li>
+</ul>
+
+<p>Which can, depending on the answers, end up getting translated to e.g.</p>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">module</span> <span class="s">"project_x_account"</span> <span class="p">{</span>
+  <span class="n">source</span> <span class="o">=</span> <span class="s">"../../modules/subaccounts/configuration"</span>
+
+  <span class="n">services</span> <span class="o">=</span> <span class="n">local</span><span class="o">.</span><span class="n">services</span>
+  <span class="n">regions</span> <span class="o">=</span> <span class="n">local</span><span class="o">.</span><span class="n">regions</span>
+
+  <span class="n">imdsv1_disabled</span> <span class="o">=</span> <span class="no">false</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>If for some reason the customer needed IMDSv1 enabled in their account.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">imdsv1_disabled</code> argument, will turn-off a mitigation that is on by default, such as an <a href="https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/require_imdsv2.tf#L5-L28">SCP enforcing IMDSv2</a> through the <code class="language-plaintext highlighter-rouge">"ec2:MetadataHttpTokens"</code> <a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys">condition key</a>.</p>
 
 <h2 id="mitigation-types">Mitigation Types</h2>
 
+<p>There are 4 mitigation types, which may or may not be relevant to a particular service.</p>
+
+<p>It is important to note we are at the mercy of AWS as to which mitigations are available. Ideally every service had a condition key we could block and then we would have solid <a href="https://www.chrisfarris.com/post/philosphy-of-prevention/">security invariants</a>. Unfortunately this is almost never the case.</p>
+
 <h4 id="no-public-subnets">No Public Subnets</h4>
 
-<p>TODO</p>
+<p>As covered in Part 1, as long as there are no public subnets in an account, the service cannot have Internet-facing assets.</p>
+
+<p>See <a href="#elb-v1--v2">ELB v1 / v2</a> for an example.</p>
 
 <h4 id="no-igw">No IGW</h4>
 
-<p>TODO</p>
+<p>As covered in Part 1, as long as there are no IGWs in an account, the service cannot have Internet-facing assets.</p>
+
+<p>See <a href="#global-accelerator">Global Accelerator</a> for an example.</p>
 
 <h4 id="condition-key">Condition Key</h4>
 
-<p>TODO</p>
+<p>There is a specific IAM condition key, that under some condition, can be blocked.</p>
+
+<p>See <a href="#lambda">Lambda</a> for an example.</p>
 
 <h4 id="condition-key--resource-type-limits">Condition Key + Resource Type Limits</h4>
 
-<p>TODO</p>
+<p>Both a condition key needs to be used, as well as limiting the types of resources to which that condition key is applied.</p>
+
+<p>See <a href="#api-gateway">API Gateway</a> for an example.</p>
 
 <h2 id="mitigations-per-service">Mitigations Per Service</h2>
 
@@ -364,13 +412,17 @@
 
 <p>???</p>
 
+<h3 id="elb-v1--v2">ELB v1 / v2</h3>
+
+<p>Load-balancers with scheme “internet-facing” can only exists in public subnets, this is enforced at creation time.</p>
+
 <h3 id="eks">EKS</h3>
 
 <p>Summary: Ban the <code class="language-plaintext highlighter-rouge">eks:CreateCluster</code> action</p>
 
 <p><code class="language-plaintext highlighter-rouge">eks:CreateCluster</code> creates a public Kubernetes API endpoint in <em>another</em> AWS account you do not own.</p>
 
-<p>Although, by default, the API requires an authorized token to perform sensitive actions<sup id="fnref:777" role="doc-noteref"><a href="#fn:777" class="footnote" rel="footnote">3</a></sup>, it can still be hit by the Internet and does not need an IGW.</p>
+<p>Although, by default, the API requires an authorized token to perform sensitive actions<sup id="fnref:777" role="doc-noteref"><a href="#fn:777" class="footnote" rel="footnote">2</a></sup>, it can still be hit by the Internet and does not need an IGW.</p>
 
 <h4 id="sidenote-about-the-eks-cluster-role">Sidenote About the EKS Cluster Role</h4>
 
@@ -382,7 +434,7 @@
 
 <p>One of the more dangerous permissions is <code class="language-plaintext highlighter-rouge">CreateLoadBalancer</code>.</p>
 
-<p>If you already are limited to private subnets or have no IGWs, then it cannot create public-facing load balancers. As an alternative however, in a pinch you can bring your own load balancer<sup id="fnref:8302" role="doc-noteref"><a href="#fn:8302" class="footnote" rel="footnote">4</a></sup> to EKS, rather than have the <a href="https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html"><code class="language-plaintext highlighter-rouge">AWS Load Balancer Controller</code></a> create them.</p>
+<p>If you already are limited to private subnets or have no IGWs, then it cannot create public-facing load balancers. As an alternative however, in a pinch you can bring your own load balancer<sup id="fnref:8302" role="doc-noteref"><a href="#fn:8302" class="footnote" rel="footnote">3</a></sup> to EKS, rather than have the <a href="https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html"><code class="language-plaintext highlighter-rouge">AWS Load Balancer Controller</code></a> create them.</p>
 
 <p>This will enable you to limit operators of the EKS cluster to <a href="#iam-protection-rings">Ring 3 style access</a>.</p>
 
@@ -449,10 +501,7 @@
 <div class="footnotes" role="doc-endnotes">
   <ol>
     <li id="fn:1424" role="doc-endnote">
-      <p>Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, nuking) regularly and only have public data in them. <a href="#fnref:1424" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:11245" role="doc-endnote">
-      <p>Special thanks to <a href="https://github.com/arkadiyt">Arkadiy Tetelman</a> too, who previously <a href="https://github.com/arkadiyt/aws_public_ips/blob/bb973055c1b8a14af6dbb057aa26cfe0a2ab47c9/lib/aws_public_ips/cli.rb#L5-L39">noted</a> some of these. <a href="#fnref:11245" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>For sandbox accounts, this may not be realistic, so you will need to manually maintain a deny list of dangerous services. Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, nuking) regularly and only have public data in them. <a href="#fnref:1424" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:777" role="doc-endnote">
       <p>By default only the <code class="language-plaintext highlighter-rouge">system:public-info-viewer</code> cluster role provides access to a set of endpoints for the <code class="language-plaintext highlighter-rouge">system:unauthenticated</code> group. These endpoints (e.g. <code class="language-plaintext highlighter-rouge">/healthz</code>, <code class="language-plaintext highlighter-rouge">/livez</code>, <code class="language-plaintext highlighter-rouge">/readyz</code>, and <code class="language-plaintext highlighter-rouge">/version</code>) are <a href="https://aws.amazon.com/blogs/security/how-to-use-new-amazon-guardduty-eks-protection-findings/">used by Network Load Balancers to perform health checks</a>. <a href="#fnref:777" class="reversefootnote" role="doc-backlink">&#8617;</a></p>

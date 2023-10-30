@@ -6,39 +6,79 @@ title: "Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Beyond
 
 There are many AWS services that do not require a VPC to make a resource public through network access. Let's walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.
 
-## Additional Mitigations Required
+## Handling All Those Services
 
-Sadly there are many AWS services that do not require an IGW to make a resource public through network access.
+Each of the hundreds of AWS services have their on nuances and possible security problems. The primary way to mitigate this risk is to deploy an allowlist strategy for IAM service prefixes, which limits the amount of AWS services you need to know in-depth.
 
-The primary way to mitigate this is to deploy an allowlist strategy for IAM service prefixes, this limits the amount of AWS services you need to know in-depth.
+Once you have this allowlist, you can check the [Mitigations Per Service](#mitigations-per-service) section and ensure you have the proper mitigations in place.
 
-TODO: Show what this looks like.
+### Implementing the Allowlist
 
-For sandbox accounts, this may not be realistic, so you will need to manually maintain a deny list of these IAM actions.[^1424]
+When a customer requests an AWS account[^1424], the fill-out form should ask them a set of questions including, "Which AWS services and regions will you be using?"
 
-[^1424]: Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, nuking) regularly and only have public data in them.
+[^1424]: For sandbox accounts, this may not be realistic, so you will need to manually maintain a deny list of dangerous services. Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, nuking) regularly and only have public data in them.
 
-See [https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access](https://github.com/SummitRoute/aws_exposable_resources#resources-that-can-be-made-public-through-network-access)[^11245] for a high-level list of actions. I'd encourage you to cut a PR to that repository if you know of a service that is not listed there, I will put extra details in this post about those actions.
+This will end up translating to e.g.
+```go
+locals {
+  services = ["dynamodb", "ec2", "s3"]
+  regions = ["us-east-2"]
+}
+```
 
-[^11245]: Special thanks to [Arkadiy Tetelman](https://github.com/arkadiyt) too, who previously [noted](https://github.com/arkadiyt/aws_public_ips/blob/bb973055c1b8a14af6dbb057aa26cfe0a2ab47c9/lib/aws_public_ips/cli.rb#L5-L39) some of these.
+Which will further be passed into a configuration module, an SCP module, or both, for the subaccount.
+
+### Service-Specific Mitigations
+
+Rather than simply giving the subaccount admin IAM role `"ec2:*"` and calling it a day, you should go further and ask service-specific questions.
+
+- "Do you need publicly accessible EC2 resources? If so, please explain why."
+- "Can you use our Terraform module for launching EC2? If not, please explain why."
+
+Which can, depending on the answers, end up getting translated to e.g.
+```go
+module "project_x_account" {
+  source = "../../modules/subaccounts/configuration"
+
+  services = local.services
+  regions = local.regions
+
+  imdsv1_disabled = false
+}
+```
+If for some reason the customer needed IMDSv1 enabled in their account.
+
+The `imdsv1_disabled` argument, will turn-off a mitigation that is on by default, such as an [SCP enforcing IMDSv2](https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/require_imdsv2.tf#L5-L28) through the `"ec2:MetadataHttpTokens"` [condition key](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys).
 
 ## Mitigation Types
 
+There are 4 mitigation types, which may or may not be relevant to a particular service. 
+
+It is important to note we are at the mercy of AWS as to which mitigations are available. Ideally every service had a condition key we could block and then we would have solid [security invariants](https://www.chrisfarris.com/post/philosphy-of-prevention/). Unfortunately this is almost never the case.
+
 #### No Public Subnets
 
-TODO
+As covered in Part 1, as long as there are no public subnets in an account, the service cannot have Internet-facing assets.
+
+See [ELB v1 / v2](#elb-v1--v2) for an example.
 
 #### No IGW
 
-TODO
+As covered in Part 1, as long as there are no IGWs in an account, the service cannot have Internet-facing assets.
+
+See [Global Accelerator](#global-accelerator) for an example.
 
 #### Condition Key
 
-TODO
+There is a specific IAM condition key, that under some condition, can be blocked.
+
+See [Lambda](#lambda) for an example.
 
 #### Condition Key + Resource Type Limits
 
-TODO
+Both a condition key needs to be used, as well as limiting the types of resources to which that condition key is applied.
+
+See [API Gateway](#api-gateway) for an example.
 
 ## Mitigations Per Service
 
@@ -99,6 +139,10 @@ Note: This takes the cake for weirdest and most error prone IAM example I have e
 ### ECS
 
 ???
+
+### ELB v1 / v2
+
+Load-balancers with scheme "internet-facing" can only exists in public subnets, this is enforced at creation time.
 
 ### EKS
 
