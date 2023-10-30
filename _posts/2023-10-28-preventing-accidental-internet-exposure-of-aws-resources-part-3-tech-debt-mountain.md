@@ -8,6 +8,10 @@ When addressing a vast, monolithic account housing a blend of private and public
 
 ![alt text](https://i.imgur.com/t0Kx9jS.png)
 
+#
+
+First we will look at how to organize different IAM roles, go through every possible way of exposing resources to the Internet, and how to stop each of those possibilities.
+
 ## IAM Protection Rings
 
 Think about your IAM roles as [privilege rings](https://en.wikipedia.org/wiki/Protection_ring) in x86:

@@ -8,7 +8,7 @@ There are many AWS services that do not require a VPC to make a resource public 
 
 ## Handling All Those Services
 
-Each of the hundreds of AWS services have their on nuances and possible security problems. The primary way to mitigate this risk is to deploy an allowlist strategy for IAM service prefixes, which limits the amount of AWS services you need to know in-depth.
+Each of the hundreds of AWS services have their own nuances and possible security problems. The primary way to mitigate this risk is to deploy an allowlist strategy for IAM service prefixes, which limits the amount of AWS services you need to know in-depth.
 
 Once you have this allowlist, you can check the [Mitigations Per Service](#mitigations-per-service) section and ensure you have the proper mitigations in place.
 
@@ -82,27 +82,27 @@ See [API Gateway](#api-gateway) for an example.
 
 ## Mitigations Per Service
 
-Service            | No Public Subnets | No IGW  | Condition Key | Condition Key + Resource Type Limits | Need To Ban
--------------------|-------------------|---------|---------------|--------------------------------------|------------
-API Gateway        | N/A               | N/A     | Partial       | Yes                                  | No
-Athena             | N/A               | N/A     | N/A           | N/A                                  | No
-CloudFront         | ?                 | ?       | ?             | ?                                    | ?
-DynamoDB           | N/A               | N/A     | N/A           | N/A                                  | No
-ECS                | ?                 | ?       | ?             | ?                                    | ?
-EC2                | Yes-ish           | Yes     | Partial       | N/A                                  | No
-EKS                | Partial           | Partial | No            | N/A                                  | Yes
-ElasticCache       | N/A               | N/A     | Partial       | Yes                                  | No
-ELB v1 / v2        | Yes               | Yes     | No            | N/A                                  | No
-EMR                | ?                 | ?       | ?             | ?                                    | ?
-Global Accelerator | No                | Yes     | No            | No                                   | No
-Lambda             | N/A               | N/A     | Yes           | N/A                                  | No
-Lightsail          | ?                 | ?       | ?             | ?                                    | ?
-Neptune            | ?                 | ?       | ?             | ?                                    | ?
-RDS                | Yes-ish           | Yes     | No            | N/A                                  | No
-Redshift           | Yes-ish           | Yes     | No            | N/A                                  | No
-S3                 | N/A               | N/A     | N/A           | N/A                                  | No
-SNS                | N/A               | N/A     | N/A           | N/A                                  | No
-SQS                | N/A               | N/A     | N/A           | N/A                                  | No
+Service                                             | No Public Subnets | No IGW  | Condition Key | Condition Key + Resource Type Limits | Need To Ban
+----------------------------------------------------|-------------------|---------|---------------|--------------------------------------|------------
+<span style="color:IndianRed">API Gateway</span>    | N/A               | N/A     | Partial       | Yes                                  | No
+<span style="color:green">Athena</span>             | N/A               | N/A     | N/A           | N/A                                  | No
+CloudFront                                          | ?                 | ?       | ?             | ?                                    | ?
+<span style="color:green">DynamoDB</span>           | N/A               | N/A     | N/A           | N/A                                  | No
+ECS                                                 | ?                 | ?       | ?             | ?                                    | ?
+<span style="color:IndianRed">EC2</span>            | Yes-ish           | Yes     | Partial       | N/A                                  | No
+<span style="color:Maroon">EKS</span>               | Partial           | Partial | No            | N/A                                  | Yes
+<span style="color:green">ElasticCache</span>       | N/A               | N/A     | N/A       | N/A                                  | No
+<span style="color:IndianRed">ELB v1 / v2</span>    | Yes               | Yes     | No            | N/A                                  | No
+EMR                                                 | ?                 | ?       | ?             | ?                                    | ?
+<span style="color:IndianRed">Global Accelerator</span>| No                | Yes     | No            | No                                   | No
+<span style="color:IndianRed">Lambda</span>            | N/A               | N/A     | Yes           | N/A                                  | No
+Lightsail                                           | ?                 | ?       | ?             | ?                                    | ?
+Neptune                                             | ?                 | ?       | ?             | ?                                    | ?
+<span style="color:IndianRed">RDS</span>               | Yes-ish           | Yes     | No            | N/A                                  | No
+<span style="color:IndianRed">Redshift</span>          | Yes-ish           | Yes     | No            | N/A                                  | No
+<span style="color:green">S3</span>                 | N/A               | N/A     | N/A           | N/A                                  | No
+<span style="color:green">SNS</span>                | N/A               | N/A     | N/A           | N/A                                  | No
+<span style="color:green">SQS</span>                | N/A               | N/A     | N/A           | N/A                                  | No
 
 TBD:
 - CloudFront
@@ -130,7 +130,7 @@ So you have to [limit the allowed resources to REST APIs, and ensure `"apigatewa
 }
 ```
 
-Note: This takes the cake for weirdest and most error prone IAM example I have ever seen. If you can turn this into a Deny statement some how I'll give you a prize.
+Note: This takes the cake for weirdest and most error prone IAM example I have ever seen. If you can turn this into a Deny statement somehow I'll give you a prize.
 
 ### CloudFront
 
@@ -143,6 +143,8 @@ Note: This takes the cake for weirdest and most error prone IAM example I have e
 ### ELB v1 / v2
 
 Load-balancers with scheme "internet-facing" can only exists in public subnets, this is enforced at creation time.
+
+TODO: What would happen if I changed the route table?
 
 ### EKS
 
