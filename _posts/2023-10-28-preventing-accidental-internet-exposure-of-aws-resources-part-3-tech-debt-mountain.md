@@ -12,7 +12,7 @@ When addressing a vast, monolithic account housing a blend of private and public
 
 First we will look at how to organize different IAM roles, go through every possible way of exposing resources to the Internet, and how to stop each of those possibilities.
 
-## IAM Protection Rings
+## Organizing IAM Roles
 
 Think about your IAM roles as [privilege rings](https://en.wikipedia.org/wiki/Protection_ring) in x86:
 
@@ -28,6 +28,8 @@ In AWS, rings 1 through 3 can be different types of IAM roles:
 With an SCP banning `ec2:CreateInternetGateway`, rings 1 through 3 cannot create Internet-facing assets no matter what, as ring 0 prevents them -- but without this, we need to play IAM games resembling [whack-a-mole](https://www.youtube.com/watch?v=iqihTaHblzM).
 
 ![alt text](https://media.tenor.com/hGclJ34JeSIAAAAC/one-punch.gif)
+
+Ideally you would have a web interface of a CI/CD system with access to these IAM permissions, such that giving engineers raw access to them was unnecessary. But the following sections are relevant either way.
 
 Next we will dive deep into one use-case, then list all use-cases, then summarize how to solve them.
 

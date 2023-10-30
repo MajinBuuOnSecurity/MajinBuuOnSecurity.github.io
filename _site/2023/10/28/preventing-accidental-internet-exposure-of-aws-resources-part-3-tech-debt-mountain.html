@@ -88,7 +88,7 @@
             <h3 class="toc-title">Table of Contents</h3>
 <nav class="toc-nav">
   <ul class="toc">
-  <li><a href="#iam-protection-rings">IAM Protection Rings</a>
+  <li><a href="#organizing-iam-roles">Organizing IAM Roles</a>
     <ul>
       <li><a href="#supporting-ring-3-with-runinstances">Supporting Ring 3 with RunInstances</a></li>
     </ul>
@@ -123,7 +123,7 @@
 
 <p>First we will look at how to organize different IAM roles, go through every possible way of exposing resources to the Internet, and how to stop each of those possibilities.</p>
 
-<h2 id="iam-protection-rings">IAM Protection Rings</h2>
+<h2 id="organizing-iam-roles">Organizing IAM Roles</h2>
 
 <p>Think about your IAM roles as <a href="https://en.wikipedia.org/wiki/Protection_ring">privilege rings</a> in x86:</p>
 
@@ -141,6 +141,8 @@
 <p>With an SCP banning <code class="language-plaintext highlighter-rouge">ec2:CreateInternetGateway</code>, rings 1 through 3 cannot create Internet-facing assets no matter what, as ring 0 prevents them – but without this, we need to play IAM games resembling <a href="https://www.youtube.com/watch?v=iqihTaHblzM">whack-a-mole</a>.</p>
 
 <p><img src="https://media.tenor.com/hGclJ34JeSIAAAAC/one-punch.gif" alt="alt text" /></p>
+
+<p>Ideally you would have a web interface of a CI/CD system with access to these IAM permissions, such that giving engineers raw access to them was unnecessary. But the following sections are relevant either way.</p>
 
 <p>Next we will dive deep into one use-case, then list all use-cases, then summarize how to solve them.</p>
 

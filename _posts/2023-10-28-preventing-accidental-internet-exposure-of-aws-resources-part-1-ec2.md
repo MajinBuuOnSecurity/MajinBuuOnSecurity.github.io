@@ -4,21 +4,21 @@ toc: true
 title: "Preventing Accidental Internet-Exposure of AWS Resources (Part 1: EC2)"
 ---
 
-[Many AWS customers have suffered breaches](https://github.com/ramimac/aws-customer-security-incidents#background) due to exposing resources to the Internet by accident. This three-part series walks through the different ways to mitigate that risk.
+[Many AWS customers have suffered breaches](https://github.com/ramimac/aws-customer-security-incidents#background) due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or [searching Shodan](https://maia.crimew.gay/posts/how-to-hack-an-airline/). This three-part series walks through the different ways to mitigate that risk.
 
 ## About The Problem
 
-TODO: Make this way better.
+TODO: Make this intro way better, after other sections are written.
 
-The question this post answers is: How do you implement the same strategy for resources in a VPC (EC2 instances, ELBs, RDS databases, etc.)?
+There are a few ways to make resources public in AWS. [github.com/SummitRoute/aws_exposable_resources](https://github.com/SummitRoute/aws_exposable_resources) was made specifically to maintain a list all AWS resources that can be publicly exposed as well as how.
 
-These are resources that can be found by an attacker via traditional public IP network scanning or [searching Shodan](https://maia.crimew.gay/posts/how-to-hack-an-airline/).
+This post discusses preventing public network access for resources exclusively in a VPC (EC2 instances, ELBs, RDS databases, etc.).
 
-Look at your AWS Org structure from a thousand-foot view and know which subtree can have publicly accessible resources invaluable.
+Ideally you can look at your AWS Org structure from a thousand-foot view and know which subtree of accounts / OUs can have publicly accessible resources invaluable.
 
 ![alt text](https://i.imgur.com/bPIKZoC.png)
 
-This is more complicated, because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).
+The reason this is complicated to implement, is because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).
 
 The reason they are tightly coupled: is an Internet Gateway (IGW) is necessary for both. So if an engineer has IAM permissions to create an IGW, or is unrestrained in how they create resources in a VPC that has one, they can expose resources to the Internet.
 
