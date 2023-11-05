@@ -1,7 +1,7 @@
 ---
 layout: post
 toc: true
-title: "Preventing Accidental Internet-Exposure of AWS Resources (Part 3: Tech Debt Mountain)"
+title: "[Rough Draft] Preventing Accidental Internet-Exposure of AWS Resources (Part 3: Tech Debt Mountain)"
 ---
 
 When addressing a vast, monolithic account housing a blend of private and public assets, how can you rectify the absence of preventative design principles?

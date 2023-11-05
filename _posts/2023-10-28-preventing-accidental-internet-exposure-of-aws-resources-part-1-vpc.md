@@ -1,22 +1,21 @@
 ---
 layout: post
 toc: true
-title: "Preventing Accidental Internet-Exposure of AWS Resources (Part 1: EC2)"
+title: "[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)"
 ---
 
 [Many AWS customers have suffered breaches](https://github.com/ramimac/aws-customer-security-incidents#background) due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or [searching Shodan](https://maia.crimew.gay/posts/how-to-hack-an-airline/). This three-part series walks through the different ways to mitigate that risk.
 
 ## About The Problem
 
-TODO: Make this intro way better, after other sections are written.
-
-There are a few ways to make resources public in AWS. [github.com/SummitRoute/aws_exposable_resources](https://github.com/SummitRoute/aws_exposable_resources) was made specifically to maintain a list all AWS resources that can be publicly exposed as well as how.
+There are many ways to make resources public in AWS. [github.com/SummitRoute/aws_exposable_resources](https://github.com/SummitRoute/aws_exposable_resources#aws-exposable-resources) was made specifically to maintain a list all AWS resources that can be publicly exposed as well as how.
 
 This post discusses preventing public network access for resources exclusively in a VPC (EC2 instances, ELBs, RDS databases, etc.).
 
-Ideally you can look at your AWS Org structure from a thousand-foot view and know which subtree of accounts / OUs can have publicly accessible resources invaluable.
+Ideally you can look at your AWS organization structure from a 1000-foot view and know which subtree of accounts / OUs can have publicly accessible resources.
 
-![alt text](https://i.imgur.com/bPIKZoC.png)
+This is What Good Looks Like:
+![alt text](https://i.imgur.com/cVFUpkJ.png)
 
 The reason this is complicated to implement, is because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).
 
@@ -25,16 +24,13 @@ The reason they are tightly coupled: is an Internet Gateway (IGW) is necessary f
 The Egress use-case typical looks like:
 ![alt text](https://i.imgur.com/vKsdNOh.png)
 
-Whereas an accidental Internet exposure might look like:
-
+Whereas an accidental Internet-exposure might look like:
 ![alt text](https://i.imgur.com/1e4M8z4.gif)
 
-Or:
-
+Or:       
 ![alt text](https://i.imgur.com/gyXZz2E.gif)
 
-There are many ways to expose resources to the Internet like this, but the key insight -- for EC2 at least -- is that they all require an Internet Gateway (IGW).
-
+There are many ways to expose resources to the Internet like this, but the key insight -- for VPCs at least -- is that they all require an Internet Gateway (IGW).
 
 ## Preventing by Design
 
@@ -43,11 +39,11 @@ Since an IGW is the root of all of our problems, we simply can ban their creatio
 
 That's it. Problem solved! You can hand the subaccount over to the customer, they will never be able to make public-facing load balancers or EC2 instances regardless of their IAM permissions.
 
-You can then, put accounts that were vended this way with the IGW-deny-SCP, in an OU and achieve [What Good Looks Like](#what-good-looks-like) above.
+You can then, put accounts that were vended this way with the IGW-deny-SCP, in an OU and achieve an AWS organization structure similar to [What Good Looks Like](#about-the-problem) above.
 
 But what if you need to support the Egress use-case above?
 
-Then you need to ensure your network architecture tightly couples a NAT Gateway with an Internet Gateway, by e.g. giving subaccounts a paved path to a NAT Gateway in another account, possible ways to do this are:
+Then you need to ensure your network architecture tightly couples a NAT Gateway with an Internet Gateway, by e.g. giving subaccounts a paved path to a NAT Gateway in another account, you can do this via:
 
 1. [Centralized Egress via Transit Gateway (TGW)](#option-1-centralized-egress-via-transit-gateway-tgw)
 2. [Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering](#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-egress-filtering)
@@ -56,19 +52,18 @@ Then you need to ensure your network architecture tightly couples a NAT Gateway 
 
 Hopefully one of these options will align with the goals of your networking team. 
 
-My personal recommendation is: Go with TGW. Once you are ready to implement Egress Filtering, have assets use PrivateLink + Egress Filtering.
+My personal recommendation is: Go with TGW. Once you are ready to implement Egress Filtering, use PrivateLink + Egress Filtering.
 
 ### Option 1: Centralized Egress via Transit Gateway (TGW)
 
 This is the most common implementation, and probably the best. If money is no issue for you: go this route.
 
 It looks like this:
-
 ![alt text](https://i.imgur.com/alRH2hN.png) 
 
 AWS first wrote about this [in 2019](https://aws.amazon.com/blogs/networking-and-content-delivery/creating-a-single-internet-exit-point-from-multiple-vpcs-using-aws-transit-gateway/) and lists it under their prescriptive guidance as [Centralized Egress](https://docs.aws.amazon.com/prescriptive-guidance/latest/transitioning-to-multiple-aws-accounts/centralized-egress.html).
 
-As you can see, each VPC in a subaccount has a route table that has 0.0.0.0/0 destined traffic sent to a TGW in another account, where an IGW does live.
+As you can see, each VPC in a subaccount has a route table with 0.0.0.0/0 destined traffic sent to a TGW in another account, where an IGW does live.
 
 #### A Note On Cost
 
@@ -76,7 +71,7 @@ This will reduce your NAT Gateway cost, which is arguably the most notoriously e
 
 On one hand, [AWS states](https://docs.aws.amazon.com/whitepapers/latest/building-scalable-secure-multi-vpc-network-infrastructure/centralized-egress-to-internet.html):
 
->Deploying a NAT gateway in every AZ of every spoke VPC can become cost-prohibitive because you pay an hourly charge for every NAT gateway you deploy, so centralizing it could be a viable option.
+>Deploying a NAT gateway in every AZ of every spoke VPC can become cost-prohibitive because you pay an hourly charge for every NAT gateway you deploy, so centralizing could be a viable option.
 
 On the other hand, they also say:
 
@@ -103,18 +98,19 @@ Some reasons you may not want to do this are:
 - Egress filtering is lower-priority than preventing accidental Internet-exposure. So tightly coupling the two and needing to setup a proxy first may not make strategic sense.
 - If something goes wrong on the host, the lost traffic will not appear in VPC flow logs [^98] or traffic mirroring logs.[^985] The DNS lookups will show up in Route53 query logs, but that's it.
 
-With that said, AWS does not have a primitive to perform Egress filtering [^99], so you will eventually have to implement Egress filtering via a proxy. Therefore, in production accounts, you can go with this option. For sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).
+With that said, AWS does not have a primitive to perform Egress filtering [^99][^99532], so you will eventually have to implement Egress filtering via a proxy. Therefore, in production accounts, you can go with this option. For sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).
 
 Using PrivateLink, in this way, would look like this:
 
 ![alt text](https://i.imgur.com/5Vh2SuX.png)
 
-[^98]: [Flow log limitations](https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html#flow-logs-limitations) does not state "Internet-bound traffic sent to a peering connection" or "Internet-bound traffic sent to a VPC interface endpoint." under `The following types of traffic are not logged:`. After testing I believe it should, but these are likely omitted due to not being a proper use-case.
+[^98]: [Flow log limitations](https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html#flow-logs-limitations) does not state "Internet-bound traffic sent to a peering connection" or "Internet-bound traffic sent to a VPC interface endpoint." under `The following types of traffic are not logged:`. After testing I believe these are likely omitted due to not being a proper use-case.
 
 [^985]: A peering connection cannot be selected as a [traffic mirror source or target](https://docs.aws.amazon.com/vpc/latest/mirroring/traffic-mirroring-targets.html), but a network interface can. However, only an ENI belonging to an EC2 instance can be a mirror source, not an ENI belonging to an Interface endpoint. The documentation doesn't mention this anywhere I could find.
 
 [^99]: It has [AWS Network Firewall](https://aws.amazon.com/network-firewall/faqs/), which can be fooled via SNI spoofing. So it is, at best, a stepping stone to keep an inventory of your Egress traffic if you can’t get a proxy up and running short-term and are not using TLS 1.3 with encrypted client hello (ECH) or encrypted SNI (ESNI).
 
+[^99532]: I love how [the FAQ](https://aws.amazon.com/network-firewall/faqs/) says these are not supported, rather than a bypass of the product -- how [Okta](https://i.imgur.com/dPyFaNK.png) of them.
 
 ### Option 3: VPC Sharing
 
@@ -145,6 +141,15 @@ You cannot create an Internet-facing asset in a private subnet, you can however 
 ![alt text](https://i.imgur.com/4OojfzP.png)
 
 [^996]: Shout out to [Aiden Steele](https://awsteele.com/blog/2022/01/02/shared-vpcs-are-underrated.html) and [Stephen Jones](https://sjramblings.io/unlock-the-hidden-power-of-vpc-sharing-in-aws) for writing their thoughts on VPC Sharing.
+
+#### Why `ec2:AssociatePublicIpAddress` is not concerning
+
+TODO: Write about Aiden's tweets
+
+https://twitter.com/__steele/status/1572752577648726016
+
+<blockquote class="twitter-tweet"><p lang="en" dir="ltr">Typically you would expect that connectivity between instances A and B isn&#39;t possible - `ping` fails to yield responses after all. But it turns out that an instance with a public IP address in a VPC with an IGW attached can _receive_ traffic - it just can&#39;t respond to it.</p>&mdash; Aidan W Steele (@__steele) <a href="https://twitter.com/__steele/status/1572752577648726016?ref_src=twsrc%5Etfw">September 22, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
 
 #### Why a NACL Cannot Help
 
@@ -238,7 +243,7 @@ If you try to disable "[Source/destination checking](https://docs.aws.amazon.com
 
 ### How do I access my machines if they are all in private subnets?
 
-Use [SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html).
+Use [SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html), or a similar product.
 
 
 ## Open Questions
@@ -254,8 +259,8 @@ Let me know how it goes limiting your Internet-exposed attack surface in an easy
 
 You might still get breached, but hopefully in a more interesting way.
 
-TODO: See Parts 2 and 3 for a more comprehensive view of AWS services and for what to do in legacy accounts.
-
 ![alt text](https://media.tenor.com/YrcU9HOzqmUAAAAC/majin-buu-clap.gif)
+
+The [next part](https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html) of this series covers handling the hundreds of other AWS services beyond just those in a VPC.
 
 ## Footnotes

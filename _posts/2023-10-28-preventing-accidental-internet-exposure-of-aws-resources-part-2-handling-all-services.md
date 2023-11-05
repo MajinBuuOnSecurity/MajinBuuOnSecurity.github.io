@@ -1,7 +1,7 @@
 ---
 layout: post
 toc: true
-title: "Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Beyond EC2)"
+title: "[Rough Draft] Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Handling All Services)"
 ---
 
 There are many AWS services that do not require a VPC to make a resource public through network access. Let's walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.
