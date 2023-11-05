@@ -12,8 +12,8 @@
 <meta property="og:title" content="[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)" />
 <meta name="author" content="Majin Buu" />
 <meta property="og:locale" content="en" />
-<meta name="description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or searching Shodan. This three-part series walks through different ways to mitigate that risk." />
-<meta property="og:description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or searching Shodan. This three-part series walks through different ways to mitigate that risk." />
+<meta name="description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that an attacker can find via traditional public IP network scanning or searching Shodan. This three-part series walks through different ways to mitigate that risk." />
+<meta property="og:description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that an attacker can find via traditional public IP network scanning or searching Shodan. This three-part series walks through different ways to mitigate that risk." />
 <link rel="canonical" href="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html" />
 <meta property="og:url" content="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html" />
 <meta property="og:site_name" content="Majin Buu on Security" />
@@ -22,7 +22,7 @@
 <meta name="twitter:card" content="summary" />
 <meta property="twitter:title" content="[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or searching Shodan. This three-part series walks through different ways to mitigate that risk.","headline":"[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html"}</script>
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that an attacker can find via traditional public IP network scanning or searching Shodan. This three-part series walks through different ways to mitigate that risk.","headline":"[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html"}</script>
 <!-- End Jekyll SEO tag -->
 
 
@@ -128,43 +128,43 @@
   </header>
 
   <div class="post-content e-content" itemprop="articleBody">
-    <p><a href="https://github.com/ramimac/aws-customer-security-incidents#background">Many AWS customers have suffered breaches</a> due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or <a href="https://maia.crimew.gay/posts/how-to-hack-an-airline/">searching Shodan</a>. This three-part series walks through different ways to mitigate that risk.</p>
+    <p><a href="https://github.com/ramimac/aws-customer-security-incidents#background">Many AWS customers have suffered breaches</a> due to exposing resources to the Internet by accident, resources that an attacker can find via traditional public IP network scanning or <a href="https://maia.crimew.gay/posts/how-to-hack-an-airline/">searching Shodan</a>. This three-part series walks through different ways to mitigate that risk.</p>
 
 <h2 id="about-the-problem">About The Problem</h2>
 
-<p>There are many ways to make resources public in AWS. <a href="https://github.com/SummitRoute/aws_exposable_resources#aws-exposable-resources">github.com/SummitRoute/aws_exposable_resources</a> was made specifically to maintain a list all AWS resources that can be publicly exposed as well as how.</p>
+<p>There are many ways to make resources public in AWS. <a href="https://github.com/SummitRoute/aws_exposable_resources#aws-exposable-resources">github.com/SummitRoute/aws_exposable_resources</a> was created specifically to maintain a list of all AWS resources that can be publicly exposed and how.</p>
 
 <p>This post discusses preventing public network access for resources exclusively in a VPC (EC2 instances, ELBs, RDS databases, etc.).</p>
 
-<p>Ideally you can look at your AWS organization structure from a 1000-foot view and know which subtree of accounts / OUs can have publicly accessible VPCs.</p>
+<p>Ideally, you can look at your AWS organization structure from a 1000-foot view and know which subtree of accounts / OUs can have publicly accessible VPCs.</p>
 
-<p>This is What Good Looks Like:
+<p>What Good Looks Like:
 <img src="https://i.imgur.com/cVFUpkJ.png" alt="alt text" /></p>
 
 <h2 id="solving-the-problem">Solving The Problem</h2>
 
 <p>You can implement this by banning <code class="language-plaintext highlighter-rouge">"ec2:CreateInternetGateway"</code> in subaccounts via SCP.<sup id="fnref:2111" role="doc-noteref"><a href="#fn:2111" class="footnote" rel="footnote">1</a></sup></p>
 
-<p>The reason this works, is because although there are many ways an accidental Internet-exposure might happen – for VPCs at least – every way requires an Internet Gateway (IGW). E.g.
+<p>The reason this works is because although there are many ways an accidental Internet-exposure might happen – for VPCs at least – every way requires an Internet Gateway (IGW). E.g.
 <img src="https://i.imgur.com/1e4M8z4.gif" alt="alt text" /></p>
 
 <p>Or:     <br />
 <img src="https://i.imgur.com/gyXZz2E.gif" alt="alt text" /></p>
 
-<p>With IGWs banned, you can hand subaccounts over to customers and they will never be able to make public-facing load balancers or EC2 instances regardless of their IAM permissions!</p>
+<p>With IGWs banned, you can hand subaccounts over to customers, and they will never be able to make public-facing load balancers or EC2 instances regardless of their IAM permissions!</p>
 
 <p>There is only one complication with this.</p>
 
 <p>In AWS: <ins>Egress to the Internet is tightly coupled with Ingress from the Internet</ins>. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).</p>
 
-<p>The reason they are tightly coupled: is an Internet Gateway (IGW) is necessary for both.</p>
+<p>They are tightly coupled because both require an Internet Gateway (IGW).</p>
 
-<p>The Egress use-case typical looks like:
+<p>The Egress use-case typically looks like:
 <img src="https://i.imgur.com/vKsdNOh.png" alt="alt text" /></p>
 
 <h2 id="supporting-egress-in-private-vpc-accounts">Supporting Egress in Private VPC Accounts</h2>
 
-<p>To support the Egress use-case you need to ensure your network architecture tightly couples a NAT Gateway with an Internet Gateway, by e.g. giving subaccounts a paved path to a NAT Gateway in another account, you can do this via:</p>
+<p>To support the Egress use-case, you must ensure your network architecture tightly couples a NAT Gateway with an Internet Gateway by, e.g., giving subaccounts a paved path to a NAT Gateway in another account. You can do this via:</p>
 
 <ol>
   <li><a href="#option-1-centralized-egress-via-transit-gateway-tgw">Centralized Egress via Transit Gateway (TGW)</a></li>
@@ -173,9 +173,9 @@
   <li><a href="#option-4-ipv6-for-egress">IPv6 for Egress</a></li>
 </ol>
 
-<p>Hopefully one of these options will align with the goals of your networking team.</p>
+<p>Hopefully, one of these options will align with the goals of your networking team.</p>
 
-<p>My personal recommendation is: Go with TGW. Once you are ready to implement Egress Filtering, use PrivateLink + Egress Filtering.</p>
+<p>My recommendation is to go with TGW. Once you are ready to implement Egress Filtering, use PrivateLink + Egress Filtering.</p>
 
 <h3 id="option-1-centralized-egress-via-transit-gateway-tgw">Option 1: Centralized Egress via Transit Gateway (TGW)</h3>
 
