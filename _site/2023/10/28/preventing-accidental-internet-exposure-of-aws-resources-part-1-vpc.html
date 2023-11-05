@@ -89,6 +89,7 @@
 <nav class="toc-nav">
   <ul class="toc">
   <li><a href="#about-the-problem">About The Problem</a></li>
+  <li><a href="#solving-the-problem">Solving The Problem</a></li>
   <li><a href="#supporting-egress-in-private-vpc-accounts">Supporting Egress in Private VPC Accounts</a>
     <ul>
       <li><a href="#option-1-centralized-egress-via-transit-gateway-tgw">Option 1: Centralized Egress via Transit Gateway (TGW)</a></li>
@@ -139,6 +140,8 @@
 
 <p>This is What Good Looks Like:
 <img src="https://i.imgur.com/cVFUpkJ.png" alt="alt text" /></p>
+
+<h2 id="solving-the-problem">Solving The Problem</h2>
 
 <p>You can implement this by banning <code class="language-plaintext highlighter-rouge">"ec2:CreateInternetGateway"</code> in subaccounts via SCP.<sup id="fnref:2111" role="doc-noteref"><a href="#fn:2111" class="footnote" rel="footnote">1</a></sup></p>
 

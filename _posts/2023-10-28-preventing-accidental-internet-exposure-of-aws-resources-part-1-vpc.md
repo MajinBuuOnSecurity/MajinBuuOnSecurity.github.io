@@ -17,6 +17,8 @@ Ideally you can look at your AWS organization structure from a 1000-foot view an
 This is What Good Looks Like:
 ![alt text](https://i.imgur.com/cVFUpkJ.png)
 
+## Solving The Problem
+
 You can implement this by banning `"ec2:CreateInternetGateway"` in subaccounts via SCP.[^2111]
 
 The reason this works, is because although there are many ways an accidental Internet-exposure might happen -- for VPCs at least -- every way requires an Internet Gateway (IGW). E.g.
