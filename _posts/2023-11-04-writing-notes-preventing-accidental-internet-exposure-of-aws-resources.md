@@ -12,7 +12,7 @@ The first few versions of the following posts were mostly me textually vomitting
 
 It would be better to start with structure, and then write what I had to say. Granted, the more I wrote, the more I discovered challenges and areas I needed to research more in-depth. So I would have needed to iterate either way.
 
-Minto says you can build the Pyramid from the top down, or bottom up.
+Minto says, in Chapter 3, you can build the Pyramid from the top down, or bottom up.
 
 ### Bottom Up
 
@@ -43,9 +43,7 @@ At the highest level of abstraction, the points I want to make are:
 - How do we support Egress use-case? (A question.)
 - We have 4 different options (Sort of an answer too.)
 
-For Option 1, I just have 1 point about Cost Savings.
-
-For Option 2, I want to warn the reader about how much effort it is.
+For each of the various options, I have a point or two I would like to highlight, to shed more light on the option.
 
 ### Relationships between Points
 ### Conclusions Drawn
