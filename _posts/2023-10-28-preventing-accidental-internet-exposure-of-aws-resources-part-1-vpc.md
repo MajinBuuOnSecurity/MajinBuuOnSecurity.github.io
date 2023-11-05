@@ -4,7 +4,7 @@ toc: true
 title: "[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)"
 ---
 
-[Many AWS customers have suffered breaches](https://github.com/ramimac/aws-customer-security-incidents#background) due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or [searching Shodan](https://maia.crimew.gay/posts/how-to-hack-an-airline/). This three-part series walks through the different ways to mitigate that risk.
+[Many AWS customers have suffered breaches](https://github.com/ramimac/aws-customer-security-incidents#background) due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or [searching Shodan](https://maia.crimew.gay/posts/how-to-hack-an-airline/). This three-part series walks through different ways to mitigate that risk.
 
 ## About The Problem
 
@@ -12,38 +12,35 @@ There are many ways to make resources public in AWS. [github.com/SummitRoute/aws
 
 This post discusses preventing public network access for resources exclusively in a VPC (EC2 instances, ELBs, RDS databases, etc.).
 
-Ideally you can look at your AWS organization structure from a 1000-foot view and know which subtree of accounts / OUs can have publicly accessible resources.
+Ideally you can look at your AWS organization structure from a 1000-foot view and know which subtree of accounts / OUs can have publicly accessible VPCs.
 
 This is What Good Looks Like:
 ![alt text](https://i.imgur.com/cVFUpkJ.png)
 
-The reason this is complicated to implement, is because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).
+You can implement this by banning `"ec2:CreateInternetGateway"` in subaccounts via SCP.[^2111]
 
-The reason they are tightly coupled: is an Internet Gateway (IGW) is necessary for both. So if an engineer has IAM permissions to create an IGW, or is unrestrained in how they create resources in a VPC that has one, they can expose resources to the Internet.
-
-The Egress use-case typical looks like:
-![alt text](https://i.imgur.com/vKsdNOh.png)
-
-Whereas an accidental Internet-exposure might look like:
+The reason this works, is because although there are many ways an accidental Internet-exposure might happen -- for VPCs at least -- every way requires an Internet Gateway (IGW). E.g.
 ![alt text](https://i.imgur.com/1e4M8z4.gif)
 
 Or:       
 ![alt text](https://i.imgur.com/gyXZz2E.gif)
 
-There are many ways to expose resources to the Internet like this, but the key insight -- for VPCs at least -- is that they all require an Internet Gateway (IGW).
+[^2111]: Alongside deleting all the IGWs/VPCs that AWS makes by default in new accounts.
 
-## Preventing by Design
+With IGWs banned, you can hand subaccounts over to customers and they will never be able to make public-facing load balancers or EC2 instances regardless of their IAM permissions!
 
-Since an IGW is the root of all of our problems, we simply can ban their creation via SCP 
-(`"ec2:CreateInternetGateway"`) upon vending an account, (alongside deleting all the IGWs/VPCs that AWS makes by default in new accounts.)
+There is only one complication with this.
 
-That's it. Problem solved! You can hand the subaccount over to the customer, they will never be able to make public-facing load balancers or EC2 instances regardless of their IAM permissions.
+In AWS: <ins>Egress to the Internet is tightly coupled with Ingress from the Internet</ins>. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).
 
-You can then, put accounts that were vended this way with the IGW-deny-SCP, in an OU and achieve an AWS organization structure similar to [What Good Looks Like](#about-the-problem) above.
+The reason they are tightly coupled: is an Internet Gateway (IGW) is necessary for both.
 
-But what if you need to support the Egress use-case above?
+The Egress use-case typical looks like:
+![alt text](https://i.imgur.com/vKsdNOh.png)
 
-Then you need to ensure your network architecture tightly couples a NAT Gateway with an Internet Gateway, by e.g. giving subaccounts a paved path to a NAT Gateway in another account, you can do this via:
+## Supporting Egress in Private VPC Accounts
+
+To support the Egress use-case you need to ensure your network architecture tightly couples a NAT Gateway with an Internet Gateway, by e.g. giving subaccounts a paved path to a NAT Gateway in another account, you can do this via:
 
 1. [Centralized Egress via Transit Gateway (TGW)](#option-1-centralized-egress-via-transit-gateway-tgw)
 2. [Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering](#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-egress-filtering)

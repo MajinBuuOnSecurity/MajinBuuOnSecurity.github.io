@@ -12,8 +12,8 @@
 <meta property="og:title" content="[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)" />
 <meta name="author" content="Majin Buu" />
 <meta property="og:locale" content="en" />
-<meta name="description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or searching Shodan. This three-part series walks through the different ways to mitigate that risk." />
-<meta property="og:description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or searching Shodan. This three-part series walks through the different ways to mitigate that risk." />
+<meta name="description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or searching Shodan. This three-part series walks through different ways to mitigate that risk." />
+<meta property="og:description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or searching Shodan. This three-part series walks through different ways to mitigate that risk." />
 <link rel="canonical" href="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html" />
 <meta property="og:url" content="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html" />
 <meta property="og:site_name" content="Majin Buu on Security" />
@@ -22,7 +22,7 @@
 <meta name="twitter:card" content="summary" />
 <meta property="twitter:title" content="[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or searching Shodan. This three-part series walks through the different ways to mitigate that risk.","headline":"[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html"}</script>
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or searching Shodan. This three-part series walks through different ways to mitigate that risk.","headline":"[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html"}</script>
 <!-- End Jekyll SEO tag -->
 
 
@@ -89,7 +89,7 @@
 <nav class="toc-nav">
   <ul class="toc">
   <li><a href="#about-the-problem">About The Problem</a></li>
-  <li><a href="#preventing-by-design">Preventing by Design</a>
+  <li><a href="#supporting-egress-in-private-vpc-accounts">Supporting Egress in Private VPC Accounts</a>
     <ul>
       <li><a href="#option-1-centralized-egress-via-transit-gateway-tgw">Option 1: Centralized Egress via Transit Gateway (TGW)</a></li>
       <li><a href="#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-egress-filtering">Option 2: Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering</a></li>
@@ -127,7 +127,7 @@
   </header>
 
   <div class="post-content e-content" itemprop="articleBody">
-    <p><a href="https://github.com/ramimac/aws-customer-security-incidents#background">Many AWS customers have suffered breaches</a> due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or <a href="https://maia.crimew.gay/posts/how-to-hack-an-airline/">searching Shodan</a>. This three-part series walks through the different ways to mitigate that risk.</p>
+    <p><a href="https://github.com/ramimac/aws-customer-security-incidents#background">Many AWS customers have suffered breaches</a> due to exposing resources to the Internet by accident, resources that can be found by an attacker via traditional public IP network scanning or <a href="https://maia.crimew.gay/posts/how-to-hack-an-airline/">searching Shodan</a>. This three-part series walks through different ways to mitigate that risk.</p>
 
 <h2 id="about-the-problem">About The Problem</h2>
 
@@ -135,38 +135,33 @@
 
 <p>This post discusses preventing public network access for resources exclusively in a VPC (EC2 instances, ELBs, RDS databases, etc.).</p>
 
-<p>Ideally you can look at your AWS organization structure from a 1000-foot view and know which subtree of accounts / OUs can have publicly accessible resources.</p>
+<p>Ideally you can look at your AWS organization structure from a 1000-foot view and know which subtree of accounts / OUs can have publicly accessible VPCs.</p>
 
 <p>This is What Good Looks Like:
 <img src="https://i.imgur.com/cVFUpkJ.png" alt="alt text" /></p>
 
-<p>The reason this is complicated to implement, is because in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).</p>
+<p>You can implement this by banning <code class="language-plaintext highlighter-rouge">"ec2:CreateInternetGateway"</code> in subaccounts via SCP.<sup id="fnref:2111" role="doc-noteref"><a href="#fn:2111" class="footnote" rel="footnote">1</a></sup></p>
 
-<p>The reason they are tightly coupled: is an Internet Gateway (IGW) is necessary for both. So if an engineer has IAM permissions to create an IGW, or is unrestrained in how they create resources in a VPC that has one, they can expose resources to the Internet.</p>
-
-<p>The Egress use-case typical looks like:
-<img src="https://i.imgur.com/vKsdNOh.png" alt="alt text" /></p>
-
-<p>Whereas an accidental Internet-exposure might look like:
+<p>The reason this works, is because although there are many ways an accidental Internet-exposure might happen – for VPCs at least – every way requires an Internet Gateway (IGW). E.g.
 <img src="https://i.imgur.com/1e4M8z4.gif" alt="alt text" /></p>
 
 <p>Or:     <br />
 <img src="https://i.imgur.com/gyXZz2E.gif" alt="alt text" /></p>
 
-<p>There are many ways to expose resources to the Internet like this, but the key insight – for VPCs at least – is that they all require an Internet Gateway (IGW).</p>
+<p>With IGWs banned, you can hand subaccounts over to customers and they will never be able to make public-facing load balancers or EC2 instances regardless of their IAM permissions!</p>
 
-<h2 id="preventing-by-design">Preventing by Design</h2>
+<p>There is only one complication with this.</p>
 
-<p>Since an IGW is the root of all of our problems, we simply can ban their creation via SCP 
-(<code class="language-plaintext highlighter-rouge">"ec2:CreateInternetGateway"</code>) upon vending an account, (alongside deleting all the IGWs/VPCs that AWS makes by default in new accounts.)</p>
+<p>In AWS: <ins>Egress to the Internet is tightly coupled with Ingress from the Internet</ins>. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).</p>
 
-<p>That’s it. Problem solved! You can hand the subaccount over to the customer, they will never be able to make public-facing load balancers or EC2 instances regardless of their IAM permissions.</p>
+<p>The reason they are tightly coupled: is an Internet Gateway (IGW) is necessary for both.</p>
 
-<p>You can then, put accounts that were vended this way with the IGW-deny-SCP, in an OU and achieve an AWS organization structure similar to <a href="#about-the-problem">What Good Looks Like</a> above.</p>
+<p>The Egress use-case typical looks like:
+<img src="https://i.imgur.com/vKsdNOh.png" alt="alt text" /></p>
 
-<p>But what if you need to support the Egress use-case above?</p>
+<h2 id="supporting-egress-in-private-vpc-accounts">Supporting Egress in Private VPC Accounts</h2>
 
-<p>Then you need to ensure your network architecture tightly couples a NAT Gateway with an Internet Gateway, by e.g. giving subaccounts a paved path to a NAT Gateway in another account, you can do this via:</p>
+<p>To support the Egress use-case you need to ensure your network architecture tightly couples a NAT Gateway with an Internet Gateway, by e.g. giving subaccounts a paved path to a NAT Gateway in another account, you can do this via:</p>
 
 <ol>
   <li><a href="#option-1-centralized-egress-via-transit-gateway-tgw">Centralized Egress via Transit Gateway (TGW)</a></li>
@@ -207,7 +202,7 @@
 </blockquote>
 
 <p>Sending huge amounts of data through a NAT Gateway should be avoided anyway.
-<a href="https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html">S3</a>, <a href="https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html">Splunk</a>, <a href="https://docs.honeycomb.io/integrations/aws/aws-privatelink/">Honeycomb</a>, and similar companies<sup id="fnref:1350" role="doc-noteref"><a href="#fn:1350" class="footnote" rel="footnote">1</a></sup> have VPC endpoints you can utilize to lower NAT Gateway data processing charges.</p>
+<a href="https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html">S3</a>, <a href="https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html">Splunk</a>, <a href="https://docs.honeycomb.io/integrations/aws/aws-privatelink/">Honeycomb</a>, and similar companies<sup id="fnref:1350" role="doc-noteref"><a href="#fn:1350" class="footnote" rel="footnote">2</a></sup> have VPC endpoints you can utilize to lower NAT Gateway data processing charges.</p>
 
 <p>TODO: Insert visualization around GB of Data Transferred and # of NAT GWs that need to be eliminated to justify the TGW cost.</p>
 
@@ -224,10 +219,10 @@
   <li>Significant effort</li>
   <li>It won’t be possible for all subaccount types, such as sandbox accounts. (Where requiring <code class="language-plaintext highlighter-rouge">iptables</code> and a proxy are too heavyweight.)</li>
   <li>Egress filtering is lower-priority than preventing accidental Internet-exposure. So tightly coupling the two and needing to setup a proxy first may not make strategic sense.</li>
-  <li>If something goes wrong on the host, the lost traffic will not appear in VPC flow logs <sup id="fnref:98" role="doc-noteref"><a href="#fn:98" class="footnote" rel="footnote">2</a></sup> or traffic mirroring logs.<sup id="fnref:985" role="doc-noteref"><a href="#fn:985" class="footnote" rel="footnote">3</a></sup> The DNS lookups will show up in Route53 query logs, but that’s it.</li>
+  <li>If something goes wrong on the host, the lost traffic will not appear in VPC flow logs <sup id="fnref:98" role="doc-noteref"><a href="#fn:98" class="footnote" rel="footnote">3</a></sup> or traffic mirroring logs.<sup id="fnref:985" role="doc-noteref"><a href="#fn:985" class="footnote" rel="footnote">4</a></sup> The DNS lookups will show up in Route53 query logs, but that’s it.</li>
 </ul>
 
-<p>With that said, AWS does not have a primitive to perform Egress filtering <sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">4</a></sup><sup id="fnref:99532" role="doc-noteref"><a href="#fn:99532" class="footnote" rel="footnote">5</a></sup>, so you will eventually have to implement Egress filtering via a proxy. Therefore, in production accounts, you can go with this option. For sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).</p>
+<p>With that said, AWS does not have a primitive to perform Egress filtering <sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">5</a></sup><sup id="fnref:99532" role="doc-noteref"><a href="#fn:99532" class="footnote" rel="footnote">6</a></sup>, so you will eventually have to implement Egress filtering via a proxy. Therefore, in production accounts, you can go with this option. For sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).</p>
 
 <p>Using PrivateLink, in this way, would look like this:</p>
 
@@ -235,7 +230,7 @@
 
 <h3 id="option-3-vpc-sharing">Option 3: VPC Sharing</h3>
 
-<p>This is a tempting, simple option, that is not well known.<sup id="fnref:996" role="doc-noteref"><a href="#fn:996" class="footnote" rel="footnote">6</a></sup></p>
+<p>This is a tempting, simple option, that is not well known.<sup id="fnref:996" role="doc-noteref"><a href="#fn:996" class="footnote" rel="footnote">7</a></sup></p>
 
 <p>You can simply make a VPC in your networking account, and share private subnets to subaccounts.</p>
 
@@ -290,7 +285,7 @@
 <p>If you are like most AWS customers:</p>
 <ul>
   <li>The Management Account of your AWS Organization has most of your resources in it</li>
-  <li>You want to follow Best Practices<sup id="fnref:996221" role="doc-noteref"><a href="#fn:996221" class="footnote" rel="footnote">7</a></sup> and have an empty Management Account</li>
+  <li>You want to follow Best Practices<sup id="fnref:996221" role="doc-noteref"><a href="#fn:996221" class="footnote" rel="footnote">8</a></sup> and have an empty Management Account</li>
   <li>It is infeasible to ‘empty’ out the current management account over time</li>
 </ul>
 
@@ -445,6 +440,9 @@
 <h2 id="footnotes">Footnotes</h2>
 <div class="footnotes" role="doc-endnotes">
   <ol>
+    <li id="fn:2111" role="doc-endnote">
+      <p>Alongside deleting all the IGWs/VPCs that AWS makes by default in new accounts. <a href="#fnref:2111" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
     <li id="fn:1350" role="doc-endnote">
       <p>There are some companies with agents meant to be deployed on EC2s that do not offer a VPC endpoint, <a href="https://sso.tax/">perhaps</a> a <a href="https://fido.fail/">wall</a> of <a href="https://github.com/SummitRoute/imdsv2_wall_of_shame#imdsv2-wall-of-shame">shame</a> can be made. <a href="#fnref:1350" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
