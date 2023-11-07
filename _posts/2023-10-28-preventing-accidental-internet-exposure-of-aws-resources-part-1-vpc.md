@@ -83,6 +83,48 @@ TODO: Insert visualization around GB of Data Transferred and # of NAT GWs that n
 
 [^1350]: There are some companies with agents meant to be deployed on EC2s that do not offer a VPC endpoint, [perhaps](https://sso.tax/) a [wall](https://fido.fail/) of [shame](https://github.com/SummitRoute/imdsv2_wall_of_shame#imdsv2-wall-of-shame) can be made.
 
+#### (WIP) Maths On Cost: No Centralized Egress
+
+Note: This is assuming US East.
+
+
+**Hourly Costs**
+
+For 1 NAT Gateway: $0.045 per hour. They are also AZ-specific. So that is 3 availability zones * [730.48](https://techoverflow.net/2022/12/21/how-many-hours-are-there-in-each-month/) hours in a month * $0.045 = $98.61 per month per VPC.
+
+Let's say you have 100 VPCs, split across a variety of different accounts/region etc.
+
+That is $9,861 a month, or $118,332 annually!
+
+
+
+**Data Processing Costs**
+
+For NAT Gateway: $0.045 per GB data processed
+
+Let's say you have 100 GB a month, that is just $4.50 per month.
+
+1 TB a month would be $40.50.
+
+10 TB would be $405 a month.
+
+
+#### (WIP) Maths On Cost: Centralized Egress
+
+**Hourly Costs**
+
+1 NAT Gateway: $98.61 a month
+
+1 Transit Gateway: with (100 + 1) VPC attachments, at 0.05 per hour. 101 * 730.48 * 0.05  = $3,688.92 per month.
+
+9,861-(98.61+3,688.92) = A cost savings of 6,073.47 a month on hourly costs!
+
+**Data Processing Costs**
+
+Same as the above + the TGW data processing charge.
+
+At $0.02 per GB data processed, that is only 20 bucks a month more per TB of data!
+
 ### Option 2: Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering
 
 PrivateLink and VPC Peering are mostly non-options. See the [FAQ](#why-is-vpc-peering-not-a-straightforward-option) for more information.
@@ -97,7 +139,7 @@ Some reasons you may not want to do this are:
 - Egress filtering is lower-priority than preventing accidental Internet-exposure. So tightly coupling the two and needing to setup a proxy first may not make strategic sense.
 - If something goes wrong on the host, the lost traffic will not appear in VPC flow logs [^98] or traffic mirroring logs.[^985] The DNS lookups will show up in Route53 query logs, but that's it.
 
-With that said, AWS does not have a primitive to perform Egress filtering [^99][^99532], so you will eventually have to implement Egress filtering via a proxy. Therefore, in production accounts, you can go with this option. For sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).
+With that said, AWS does not have a primitive to perform Egress filtering,[^99] so you will eventually have to implement Egress filtering via a proxy. Therefore, in production accounts, you can go with this option. For sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).
 
 Using PrivateLink, in this way, would look like this:
 
@@ -107,9 +149,7 @@ Using PrivateLink, in this way, would look like this:
 
 [^985]: A peering connection cannot be selected as a [traffic mirror source or target](https://docs.aws.amazon.com/vpc/latest/mirroring/traffic-mirroring-targets.html), but a network interface can. However, only an ENI belonging to an EC2 instance can be a mirror source, not an ENI belonging to an Interface endpoint. The documentation doesn't mention this anywhere I could find.
 
-[^99]: It has [AWS Network Firewall](https://aws.amazon.com/network-firewall/faqs/), which can be fooled via SNI spoofing. So it is, at best, a stepping stone to keep an inventory of your Egress traffic if you can’t get a proxy up and running short-term and are not using TLS 1.3 with encrypted client hello (ECH) or encrypted SNI (ESNI).
-
-[^99532]: I love how [the FAQ](https://aws.amazon.com/network-firewall/faqs/) says these are not supported, rather than a bypass of the product -- how [Okta](https://i.imgur.com/dPyFaNK.png) of them.
+[^99]: It has [AWS Network Firewall](https://aws.amazon.com/network-firewall/faqs/), which can be fooled via SNI spoofing. So it is, at best, a stepping stone to keep an inventory of your Egress traffic if you can’t get a proxy up and running short-term and are not using TLS 1.3 with encrypted client hello (ECH) or encrypted SNI (ESNI). I cringe at how [the FAQ](https://aws.amazon.com/network-firewall/faqs/) says these are not supported, rather than a bypass of the product. Sadly this euphemism [isn't unique to AWS](https://i.imgur.com/dPyFaNK.png).
 
 ### Option 3: VPC Sharing
 
