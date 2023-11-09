@@ -101,6 +101,7 @@
   </li>
   <li><a href="#faq">FAQ</a>
     <ul>
+      <li><a href="#can-you-walk-through-the-cost-details-around-option-1">Can you walk through the cost details around Option 1?</a></li>
       <li><a href="#why-is-vpc-peering-not-a-straightforward-option">Why is VPC peering not a straightforward option?</a></li>
       <li><a href="#why-is-vpc-privatelink-not-a-straightforward-option">Why is VPC PrivateLink not a straightforward option?</a></li>
       <li><a href="#how-do-i-access-my-machines-if-they-are-all-in-private-subnets">How do I access my machines if they are all in private subnets?</a></li>
@@ -207,45 +208,10 @@
 <p>Sending huge amounts of data through a NAT Gateway should be avoided anyway.
 <a href="https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html">S3</a>, <a href="https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html">Splunk</a>, <a href="https://docs.honeycomb.io/integrations/aws/aws-privatelink/">Honeycomb</a>, and similar companies<sup id="fnref:1350" role="doc-noteref"><a href="#fn:1350" class="footnote" rel="footnote">2</a></sup> have VPC endpoints you can utilize to lower NAT Gateway data processing charges.</p>
 
-<p>TODO: Insert visualization around GB of Data Transferred and # of NAT GWs that need to be eliminated to justify the TGW cost.</p>
+<p>The following is a graph, <a href="https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5">generated with Python</a>. As you can see at e.g. 20 VPCs you’d need to be sending over 55 TB for centralized egress to be more expensive, it only gets more worth while the more VPCs you add.
+<img src="https://i.imgur.com/fxKEToY.png" alt="alt text" /></p>
 
-<h4 id="wip-maths-on-cost-no-centralized-egress">(WIP) Maths On Cost: No Centralized Egress</h4>
-
-<p>Note: This is assuming US East.</p>
-
-<p><strong>Hourly Costs</strong></p>
-
-<p>For 1 NAT Gateway: $0.045 per hour. They are also AZ-specific. So that is 3 availability zones * <a href="https://techoverflow.net/2022/12/21/how-many-hours-are-there-in-each-month/">730.48</a> hours in a month * $0.045 = $98.61 per month per VPC.</p>
-
-<p>Let’s say you have 100 VPCs, split across a variety of different accounts/region etc.</p>
-
-<p>That is $9,861 a month, or $118,332 annually!</p>
-
-<p><strong>Data Processing Costs</strong></p>
-
-<p>For NAT Gateway: $0.045 per GB data processed</p>
-
-<p>Let’s say you have 100 GB a month, that is just $4.50 per month.</p>
-
-<p>1 TB a month would be $40.50.</p>
-
-<p>10 TB would be $405 a month.</p>
-
-<h4 id="wip-maths-on-cost-centralized-egress">(WIP) Maths On Cost: Centralized Egress</h4>
-
-<p><strong>Hourly Costs</strong></p>
-
-<p>1 NAT Gateway: $98.61 a month</p>
-
-<p>1 Transit Gateway: with (100 + 1) VPC attachments, at 0.05 per hour. 101 * 730.48 * 0.05  = $3,688.92 per month.</p>
-
-<p>9,861-(98.61+3,688.92) = A cost savings of 6,073.47 a month on hourly costs!</p>
-
-<p><strong>Data Processing Costs</strong></p>
-
-<p>Same as the above + the TGW data processing charge.</p>
-
-<p>At $0.02 per GB data processed, that is only 20 bucks a month more per TB of data!</p>
+<p>See <a href="#can-you-walk-through-the-cost-details-around-option-1">the FAQ</a> for a verbose example.</p>
 
 <h3 id="option-2-centralized-egress-via-privatelink-or-vpc-peering-with-egress-filtering">Option 2: Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering</h3>
 
@@ -267,7 +233,9 @@
 
 <p>Using PrivateLink, in this way, would look like this:</p>
 
-<p><img src="https://i.imgur.com/5Vh2SuX.png" alt="alt text" /></p>
+<p><img src="https://i.imgur.com/vg9rcTE.png" alt="alt text" /></p>
+
+<p>Note that not a single NAT Gateway is necessary here, as Envoy is running in an public subnet.</p>
 
 <h3 id="option-3-vpc-sharing">Option 3: VPC Sharing</h3>
 
@@ -376,8 +344,8 @@
     <tr>
       <td>AWS Billing Cost</td>
       <td><span style="color:red">Highest</span></td>
-      <td>Medium</td>
-      <td>Lowest</td>
+      <td>Low</td>
+      <td>Low</td>
       <td>Low</td>
     </tr>
     <tr>
@@ -414,6 +382,70 @@
 <p>* = YMMV</p>
 
 <h2 id="faq">FAQ</h2>
+
+<h3 id="can-you-walk-through-the-cost-details-around-option-1">Can you walk through the cost details around Option 1?</h3>
+
+<p>Note: This is assuming US East, 100 VPCs and 3 AZs. If you want to change these variables, see the <a href="https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5">Python gist</a> that made <a href="#option-1-centralized-egress-via-transit-gateway-tgw">the graph above</a>.</p>
+
+<h4 id="cost-example-no-centralized-egress">Cost Example: No Centralized Egress</h4>
+
+<p><strong>Hourly Costs</strong></p>
+
+<blockquote>
+  <p>For 1 NAT Gateway: $0.045 <a href="https://aws.amazon.com/vpc/pricing/">per hour</a>. They are also AZ-specific. So that is 3 availability zones * <a href="https://techoverflow.net/2022/12/21/how-many-hours-are-there-in-each-month/">730.48</a> hours in a month * $0.045 = $98.61 per month per VPC.</p>
+</blockquote>
+
+<blockquote>
+  <p>Let’s say you have 100 VPCs, split across a variety of different accounts/regions etc.</p>
+</blockquote>
+
+<blockquote>
+  <p>That is $9,861 a month, or $118,332 annually!</p>
+</blockquote>
+
+<p><strong>Data Processing Costs</strong></p>
+
+<blockquote>
+  <p>For NAT Gateway: $0.045 <a href="https://aws.amazon.com/vpc/pricing/">per GB data processed</a></p>
+</blockquote>
+
+<blockquote>
+  <p>Let’s say you have 100 GB a month, that is just $4.50 per month.</p>
+</blockquote>
+
+<blockquote>
+  <p>1 TB a month would be $45.</p>
+</blockquote>
+
+<blockquote>
+  <p>10 TB would be $450 a month.</p>
+</blockquote>
+
+<h4 id="cost-example-centralized-egress">Cost Example: Centralized Egress</h4>
+
+<p><strong>Hourly Costs</strong></p>
+
+<blockquote>
+  <p>1 NAT Gateway: $98.61 a month</p>
+</blockquote>
+
+<blockquote>
+  <p>1 Transit Gateway: with (100 + 1) VPC attachments, at 0.05 <a href="https://aws.amazon.com/transit-gateway/pricing/">per hour</a>. 101 * 730.48 * 0.05  = $3,688.92 per month.</p>
+</blockquote>
+
+<blockquote>
+  <p>9,861-(98.61+3,688.92) = A cost savings of 6,073.47 a month on hourly costs!</p>
+</blockquote>
+
+<p><strong>Data Processing Costs</strong></p>
+
+<blockquote>
+  <p>Same as the above + the TGW data processing charge.</p>
+</blockquote>
+
+<blockquote>
+  <p>At $0.02 <a href="https://aws.amazon.com/transit-gateway/pricing/">per GB data processed</a>, that is only 20 bucks a month more per TB of data!</p>
+</blockquote>
 
 <h3 id="why-is-vpc-peering-not-a-straightforward-option">Why is VPC peering not a straightforward option?</h3>
 
