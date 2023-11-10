@@ -129,45 +129,21 @@ This looks like:
 
 The main problem with this approach, is that there will _still be an Internet Gateway in the VPC_.
 
-Being limited to private subnets helps with 2 problems:
+Unless you also used a TGW:[^12202]
 
-1. Engineers can launch EC2 instances and you won't have to worry about them implicitly getting a public IP address.
-2. Engineers can create Load Balancers, but never Internet-facing ones. As `CreateLoadBalancer` requires that a public subnet be provided.
+![alt text](https://i.imgur.com/aYyKrH1.png)
 
-However, an engineer can still make Internet-facing assets with e.g.
+[^12202]: Only \~$73.04 a month, plus 20 bucks per TB in data processing costs.
 
-- Global Accelerator
-- Any future services that treat the presence of an IGW as a welcome mat
+Assuming you don't want to pay for TGW, you can ban actions that would explicitly give an instance in a private subnet a public IP.[^220220]
 
-I will discuss addressing the risk of these services more in the [next part](https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html) of the series.
+[^220220]: See [the FAQ]() for what it means to have an EC2 in a private subnet have a public IP.
 
-#### Why a public IP in a private subnet is not concerning
+This can be done by banning [`ec2:RunInstances` with the `"ec2:AssociatePublicIpAddress` condition key set to `"true"`](https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29), and EIP related IAM actions such as `ec2:AssociateAddress`.
 
-TODO: IF YOU HAVE A VPC WITHOUT AN IGW, CAN YOU GIVE A PUBLIC IP VIA `AssociatePublicIpAddress` OR EIP? It shouldn't work I would think, nothing to do static NAT.
+Then the only problem are AWS services that treat the presence of an IGW as a 'welcome mat', to make something face the Internet; [Global Accelerator](https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html#global-accelerator) is an example. These are not a big deal because so many other services don't require an IGW to make Internet facing resources, so you have to deal with the 'hundreds of AWS services' problem holistically regardless.
 
-An engineer can call `ec2:RunInstances` with the `"ec2:AssociatePublicIpAddress` condition key set to `"true"`, or through associating an EIP with an instance. Both of these actions should be blocked [via SCP](https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29).
-
-However, it is interesting to note, that it wouldn't be too severe if it happened.
-
-If an EC2 is in a private subnet, in a VPC with an IGW, and has a public IP, you can send packets to it from the Internet. Fortunely the EC2 can't really respond.
-
-This is because the route table that a subnet is associated with is only checked on outgoing traffic, not incoming traffic.
-
-As for why it cannot respond to traffic. For a private subnet, the route table will have a path to a NAT Gateway, so response packets will have the source IP of the NAT Gateway rather than the EC2 instance.[^9133]
-
-[^9133]: Yet another shout out to Aiden Steele who [wrote about this in another context](https://twitter.com/__steele/status/1572752577648726016).
-
-TODO: GET MY NMAP SCREENSHOTS
-
-TODO: TEST THIS AGAIN, THE 2ND PART, NOT THE 1ST
-
-TODO: Also do ifconfig test
-
-#### Why a NACL Cannot Help
-
-You might think that, since NACLs support to deny rules, you could add an Ingress deny rule blocking the Internet from hitting the EC2s in the private subnet.
-
-Unfortunately, because NACLs are stateless, Egress traffic to the Internet would have all responses blocked by the NACL.
+I discuss addressing the risk of 'hundreds of AWS services' in the [next part](https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html) of the series.
 
 #### A Strategic Implication of VPC Sharing
 
@@ -208,7 +184,7 @@ Unfortunately, with this primitive, there is no way to connect IPv4-only destina
 
 As Sébastien Stormacq wrote in [Let Your IPv6-only Workloads Connect to IPv4 Services](https://aws.amazon.com/blogs/aws/let-your-ipv6-only-workloads-connect-to-ipv4-services/), you need only add a route table entry and set `--enable-dns64` on subnets to accomplish this -- but you unfortunately still need an IGW.
 
-DNS queries made to the Amazon-provided DNS Resolver in subnets will then return synthetic IPv6 addresses for IPv4-only destinations with the well-known `64:ff9b::/96` prefix. And due to the route table entry, traffic with that prefix will be sent to the NAT Gateway.
+`--enable-dns64` makes it so DNS queries made to the Amazon-provided DNS Resolver will return synthetic IPv6 addresses for IPv4-only destinations with the well-known `64:ff9b::/96` prefix. The route table entry makes traffic with that prefix go to the NAT Gateway.
 
 The problem is the NAT Gateway then needs an IGW to communicate with the destination, so one of the [other options](https://d1.awsstatic.com/architecture-diagrams/ArchitectureDiagrams/IPv6-reference-architectures-for-AWS-and-hybrid-networks-ra.pdf) becomes necessary.
 
@@ -320,6 +296,17 @@ Vs $7,700 a month with 50 separate VPCs!
 
 Use [SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html), or a similar product.
 
+### What happens if an EC2 instance in a private subnet gets a public IP?
+
+You can send packets to it from the Internet. However, the EC2 can't really respond.
+
+This is because incoming traffic first hits the IGW, then the EC2. Nothing else is checked assuming the NACL and security group allow it.
+
+As for why it cannot respond to traffic. For a private subnet, the route table -- which is only consulted for outgoing traffic -- will have a path to a NAT Gateway, not the IGW. So response packets will have the source IP of the NAT Gateway rather than the EC2 instance, messing up e.g. the TCP handshake.[^9133]
+
+[^9133]: Yet another shout out to Aiden Steele who [wrote about this in another context](https://twitter.com/__steele/status/1572752577648726016).
+
+With VPC sharing, you can control the NACL but not the Security Group. A NACL won't be able to help however, because an Ingress deny rule blocking the Internet from hitting the EC2 will also block responses from the Internet to Egress Traffic.
 
 ## Open Questions
 

@@ -106,6 +106,7 @@
       <li><a href="#why-is-vpc-privatelink-not-a-straightforward-option">Why is VPC PrivateLink not a straightforward option?</a></li>
       <li><a href="#how-much-cheaper-is-vpc-sharing-than-tgw">How much cheaper is VPC Sharing than TGW?</a></li>
       <li><a href="#how-do-i-access-my-machines-if-they-are-all-in-private-subnets">How do I access my machines if they are all in private subnets?</a></li>
+      <li><a href="#what-happens-if-an-ec2-instance-in-a-private-subnet-gets-a-public-ip">What happens if an EC2 instance in a private subnet gets a public IP?</a></li>
     </ul>
   </li>
   <li><a href="#open-questions">Open Questions</a></li>
@@ -249,47 +250,17 @@
 
 <p>The main problem with this approach, is that there will <em>still be an Internet Gateway in the VPC</em>.</p>
 
-<p>Being limited to private subnets helps with 2 problems:</p>
+<p>Unless you also used a TGW:<sup id="fnref:12202" role="doc-noteref"><a href="#fn:12202" class="footnote" rel="footnote">7</a></sup></p>
 
-<ol>
-  <li>Engineers can launch EC2 instances and you won’t have to worry about them implicitly getting a public IP address.</li>
-  <li>Engineers can create Load Balancers, but never Internet-facing ones. As <code class="language-plaintext highlighter-rouge">CreateLoadBalancer</code> requires that a public subnet be provided.</li>
-</ol>
+<p><img src="https://i.imgur.com/aYyKrH1.png" alt="alt text" /></p>
 
-<p>However, an engineer can still make Internet-facing assets with e.g.</p>
+<p>Assuming you don’t want to pay for TGW, you can ban actions that would explicitly give an instance in a private subnet a public IP.<sup id="fnref:220220" role="doc-noteref"><a href="#fn:220220" class="footnote" rel="footnote">8</a></sup></p>
 
-<ul>
-  <li>Global Accelerator</li>
-  <li>Any future services that treat the presence of an IGW as a welcome mat</li>
-</ul>
+<p>This can be done by banning <a href="https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29"><code class="language-plaintext highlighter-rouge">ec2:RunInstances</code> with the <code class="language-plaintext highlighter-rouge">"ec2:AssociatePublicIpAddress</code> condition key set to <code class="language-plaintext highlighter-rouge">"true"</code></a>, and EIP related IAM actions such as <code class="language-plaintext highlighter-rouge">ec2:AssociateAddress</code>.</p>
 
-<p>I will discuss addressing the risk of these services more in the <a href="https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html">next part</a> of the series.</p>
+<p>Then the only problem are AWS services that treat the presence of an IGW as a ‘welcome mat’, to make something face the Internet; <a href="https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html#global-accelerator">Global Accelerator</a> is an example. These are not a big deal because so many other services don’t require an IGW to make Internet facing resources, so you have to deal with the ‘hundreds of AWS services’ problem holistically regardless.</p>
 
-<h4 id="why-a-public-ip-in-a-private-subnet-is-not-concerning">Why a public IP in a private subnet is not concerning</h4>
-
-<p>TODO: IF YOU HAVE A VPC WITHOUT AN IGW, CAN YOU GIVE A PUBLIC IP VIA <code class="language-plaintext highlighter-rouge">AssociatePublicIpAddress</code> OR EIP? It shouldn’t work I would think, nothing to do static NAT.</p>
-
-<p>An engineer can call <code class="language-plaintext highlighter-rouge">ec2:RunInstances</code> with the <code class="language-plaintext highlighter-rouge">"ec2:AssociatePublicIpAddress</code> condition key set to <code class="language-plaintext highlighter-rouge">"true"</code>, or through associating an EIP with an instance. Both of these actions should be blocked <a href="https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29">via SCP</a>.</p>
-
-<p>However, it is interesting to note, that it wouldn’t be too severe if it happened.</p>
-
-<p>If an EC2 is in a private subnet, in a VPC with an IGW, and has a public IP, you can send packets to it from the Internet. Fortunely the EC2 can’t really respond.</p>
-
-<p>This is because the route table that a subnet is associated with is only checked on outgoing traffic, not incoming traffic.</p>
-
-<p>As for why it cannot respond to traffic. For a private subnet, the route table will have a path to a NAT Gateway, so response packets will have the source IP of the NAT Gateway rather than the EC2 instance.<sup id="fnref:9133" role="doc-noteref"><a href="#fn:9133" class="footnote" rel="footnote">7</a></sup></p>
-
-<p>TODO: GET MY NMAP SCREENSHOTS</p>
-
-<p>TODO: TEST THIS AGAIN, THE 2ND PART, NOT THE 1ST</p>
-
-<p>TODO: Also do ifconfig test</p>
-
-<h4 id="why-a-nacl-cannot-help">Why a NACL Cannot Help</h4>
-
-<p>You might think that, since NACLs support to deny rules, you could add an Ingress deny rule blocking the Internet from hitting the EC2s in the private subnet.</p>
-
-<p>Unfortunately, because NACLs are stateless, Egress traffic to the Internet would have all responses blocked by the NACL.</p>
+<p>I discuss addressing the risk of ‘hundreds of AWS services’ in the <a href="https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html">next part</a> of the series.</p>
 
 <h4 id="a-strategic-implication-of-vpc-sharing">A Strategic Implication of VPC Sharing</h4>
 
@@ -304,7 +275,7 @@
 <p>If you are like most AWS customers:</p>
 <ul>
   <li>The Management Account of your AWS Organization has most of your resources in it</li>
-  <li>You want to follow Best Practices<sup id="fnref:996221" role="doc-noteref"><a href="#fn:996221" class="footnote" rel="footnote">8</a></sup> and have an empty Management Account</li>
+  <li>You want to follow Best Practices<sup id="fnref:996221" role="doc-noteref"><a href="#fn:996221" class="footnote" rel="footnote">9</a></sup> and have an empty Management Account</li>
   <li>It is infeasible to ‘empty’ out the current management account over time</li>
 </ul>
 
@@ -334,7 +305,7 @@
 
 <p>As Sébastien Stormacq wrote in <a href="https://aws.amazon.com/blogs/aws/let-your-ipv6-only-workloads-connect-to-ipv4-services/">Let Your IPv6-only Workloads Connect to IPv4 Services</a>, you need only add a route table entry and set <code class="language-plaintext highlighter-rouge">--enable-dns64</code> on subnets to accomplish this – but you unfortunately still need an IGW.</p>
 
-<p>DNS queries made to the Amazon-provided DNS Resolver in subnets will then return synthetic IPv6 addresses for IPv4-only destinations with the well-known <code class="language-plaintext highlighter-rouge">64:ff9b::/96</code> prefix. And due to the route table entry, traffic with that prefix will be sent to the NAT Gateway.</p>
+<p><code class="language-plaintext highlighter-rouge">--enable-dns64</code> makes it so DNS queries made to the Amazon-provided DNS Resolver will return synthetic IPv6 addresses for IPv4-only destinations with the well-known <code class="language-plaintext highlighter-rouge">64:ff9b::/96</code> prefix. The route table entry makes traffic with that prefix go to the NAT Gateway.</p>
 
 <p>The problem is the NAT Gateway then needs an IGW to communicate with the destination, so one of the <a href="https://d1.awsstatic.com/architecture-diagrams/ArchitectureDiagrams/IPv6-reference-architectures-for-AWS-and-hybrid-networks-ra.pdf">other options</a> becomes necessary.</p>
 
@@ -529,6 +500,16 @@
 
 <p>Use <a href="https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html">SSM</a>, or a similar product.</p>
 
+<h3 id="what-happens-if-an-ec2-instance-in-a-private-subnet-gets-a-public-ip">What happens if an EC2 instance in a private subnet gets a public IP?</h3>
+
+<p>You can send packets to it from the Internet. However, the EC2 can’t really respond.</p>
+
+<p>This is because incoming traffic first hits the IGW, then the EC2. Nothing else is checked assuming the NACL and security group allow it.</p>
+
+<p>As for why it cannot respond to traffic. For a private subnet, the route table – which is only consulted for outgoing traffic – will have a path to a NAT Gateway, not the IGW. So response packets will have the source IP of the NAT Gateway rather than the EC2 instance, messing up e.g. the TCP handshake.<sup id="fnref:9133" role="doc-noteref"><a href="#fn:9133" class="footnote" rel="footnote">10</a></sup></p>
+
+<p>With VPC sharing, you can control the NACL but not the Security Group. A NACL won’t be able to help however, because an Ingress deny rule blocking the Internet from hitting the EC2 will also block responses from the Internet to Egress Traffic.</p>
+
 <h2 id="open-questions">Open Questions</h2>
 
 <ul>
@@ -569,11 +550,17 @@
     <li id="fn:996" role="doc-endnote">
       <p>Shout out to <a href="https://awsteele.com/blog/2022/01/02/shared-vpcs-are-underrated.html">Aiden Steele</a> and <a href="https://sjramblings.io/unlock-the-hidden-power-of-vpc-sharing-in-aws">Stephen Jones</a> for writing their thoughts on VPC Sharing. <a href="#fnref:996" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:9133" role="doc-endnote">
-      <p>Yet another shout out to Aiden Steele who <a href="https://twitter.com/__steele/status/1572752577648726016">wrote about this in another context</a>. <a href="#fnref:9133" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    <li id="fn:12202" role="doc-endnote">
+      <p>Only ~$73.04 a month, plus 20 bucks per TB in data processing costs. <a href="#fnref:12202" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:220220" role="doc-endnote">
+      <p>See <a href="">the FAQ</a> for what it means to have an EC2 in a private subnet have a public IP. <a href="#fnref:220220" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:996221" role="doc-endnote">
       <p>This is Stage 1 of Scott’s <a href="https://summitroute.com/downloads/aws_security_maturity_roadmap-Summit_Route.pdf">AWS Security Maturity Roadmap</a>, for example. <a href="#fnref:996221" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:9133" role="doc-endnote">
+      <p>Yet another shout out to Aiden Steele who <a href="https://twitter.com/__steele/status/1572752577648726016">wrote about this in another context</a>. <a href="#fnref:9133" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
