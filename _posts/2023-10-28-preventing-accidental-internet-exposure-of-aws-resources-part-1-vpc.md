@@ -51,7 +51,7 @@ To support the Egress use-case, you must ensure your network architecture tightl
 
 Hopefully, one of these options will align with the goals of your networking team.
 
-My recommendation is to go with TGW. Once you are ready to implement Egress Filtering, use PrivateLink + Egress Filtering.
+My recommendation is to go with TGW for most accounts, and VPC Sharing for sandbox/test accounts. Once you are ready to implement Egress Filtering, use PrivateLink + Egress Filtering.
 
 ### Option 1: Centralized Egress via Transit Gateway (TGW)
 
@@ -120,45 +120,56 @@ Note that not a single NAT Gateway is necessary here, as Envoy is running in an 
 
 This is a tempting, simple option, that is not well known.[^996]
 
+[^996]: Shout out to [Aiden Steele](https://awsteele.com/blog/2022/01/02/shared-vpcs-are-underrated.html) and [Stephen Jones](https://sjramblings.io/unlock-the-hidden-power-of-vpc-sharing-in-aws) for writing their thoughts on VPC Sharing.
+
 You can simply make a VPC in your networking account, and share private subnets to subaccounts.
 
-The problem with this approach, is that there will _still be an Internet Gateway in the VPC_, if you do not go with one of the other approaches.
+This looks like:
+![alt text](https://i.imgur.com/4OojfzP.png)
+
+The main problem with this approach, is that there will _still be an Internet Gateway in the VPC_.
 
 Being limited to private subnets helps with 2 problems:
 
 1. Engineers can launch EC2 instances and you won't have to worry about them implicitly getting a public IP address
 2. Engineers can create Internet-facing Load Balancers, as `CreateLoadBalancer` requires that a public subnet be provided
 
-An engineer can still make Internet-facing assets with e.g.
+However, an engineer can still make Internet-facing assets with e.g.
 
-<!-- - The `ec2:AssociatePublicIpAddress` condition key -->
 - Global Accelerator
 - Any future services that treat the presence of an IGW as a welcome mat
 
+I will discuss addressing the risk of these services more in the [next part](https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html) of the series.
 
-TODO: Talk about the extra steps here.. TODO
+#### Why a public IP in a private subnet is not concerning
 
-Unfortunately, you cannot leverage a TODO
+TODO: IF YOU HAVE A VPC WITHOUT AN IGW, CAN YOU GIVE A PUBLIC IP VIA `AssociatePublicIpAddress` OR EIP? It shouldn't work I would think.
 
-You cannot create an Internet-facing asset in a private subnet, you can however setup `ec2:AssociatePublicIpAddress` / Global Accelerator.
+An engineer can call `ec2:RunInstances` with the `"ec2:AssociatePublicIpAddress` condition key set to `"true"`, or through associating an EIP with an instance, both these actions should be blocked [via SCP](https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29) too.
 
-![alt text](https://i.imgur.com/4OojfzP.png)
+However, it is interesting to note, that it wouldn't be too severe if it did.
 
-[^996]: Shout out to [Aiden Steele](https://awsteele.com/blog/2022/01/02/shared-vpcs-are-underrated.html) and [Stephen Jones](https://sjramblings.io/unlock-the-hidden-power-of-vpc-sharing-in-aws) for writing their thoughts on VPC Sharing.
-
-#### Why `ec2:AssociatePublicIpAddress` is not concerning
-
-TODO: Write about Aiden's tweets
+As Aiden Steele wrote on Twitter:
 
 <blockquote class="twitter-tweet" data-conversation="none"><p lang="en" dir="ltr">Typically you would expect that connectivity between instances A and B isn&#39;t possible - `ping` fails to yield responses after all. But it turns out that an instance with a public IP address in a VPC with an IGW attached can _receive_ traffic - it just can&#39;t respond to it.</p>&mdash; Aidan W Steele (@__steele) <a href="https://twitter.com/__steele/status/1572752577648726016?ref_src=twsrc%5Etfw">September 22, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
+If an EC2 is in a private subnet, in a VPC with an IGW, and has a public IP, you can send packets to it from the Internet.
+
+This is because the route table that a subnet is associated with is only checked on outgoing traffic, not incoming traffic. The IGW simply does static NAT and nothing else.
+
+As for why it cannot respond to traffic. For a private subnet, the route table will have a path to a NAT Gateway, so response packets will have the source IP of the NAT Gateway rather than the EC2 instance.
+
+TODO: GET MY NMAP SCREENSHOTS
+
+TODO: TEST THIS AGAIN, THE 2ND PART, NOT THE 1ST
+
+TODO: Also do ifconfig test
 
 #### Why a NACL Cannot Help
 
-A NACL is a stateless TODO
+You might think that, since NACLs support to deny rules, you could add an Ingress deny rule blocking the Internet from hitting the EC2s in the private subnet.
 
-The traditional TODO
-
+Unfortunately, because NACLs are stateless, any responses from the Internet to outbound traffic would be dropped.
 
 #### A Strategic Implication of VPC Sharing
 
@@ -256,7 +267,9 @@ _Note: This is assuming US East, 100 VPCs and 3 AZs. If you want to change these
 
 > Same as the above + the TGW data processing charge.
 
-> At $0.02 [per GB data processed](https://aws.amazon.com/transit-gateway/pricing/), that is only 20 bucks a month more per TB of data!
+> At $0.02 [per GB data processed](https://aws.amazon.com/transit-gateway/pricing/), that is only 20 bucks per TB of data!
+
+> In conclusion, you'd need to be sending more than 303.67 TB for centralized egress to cost more.
 
 ### Why is VPC peering not a straightforward option?
 
@@ -283,6 +296,27 @@ The reasoning is similar to peering: PrivateLink is not meant to be transitive.
 To dive deeper: When you make an interface VPC endpoint with AWS PrivateLink, a "[requester-managed network interface](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/requester-managed-eni.html)" is created. The "requester" is AWS, as you can see by the mysterious "727180483921" account ID.
 
 If you try to disable "[Source/destination checking](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics)" (which ensures that the ENI is either the source or the destination of any traffic it receives), you will not be able to. So traffic is dropped before it would ever travel cross-account.
+
+### How much cheaper is VPC Sharing than TGW?
+
+_Assuming you would have 50 spoke VPCs and were in US East._
+
+
+If you are making 1 giant VPC, and sharing different subnets to each subaccount. Each option would have 1 NAT Gateway, so in that way they are the same.
+
+> 1 Transit Gateway: with (50 + 1) VPC attachments, at 0.05 [per hour](https://aws.amazon.com/transit-gateway/pricing/). 51 * 730.48 * 0.05  = $1,862.72 per month.
+
+> At $0.02 [per GB data processed](https://aws.amazon.com/transit-gateway/pricing/), that is 20 bucks a month more per TB of data!
+
+Assuming 1 TB of data processed a month, that is $1,882.72 more a month.
+
+#### VPC Endpoint Costs
+
+If you wanted to use VPC endpoints across all VPCs, then you'd have to pay 50x more for them with TGW.
+
+Those are $0.01 per hour per availability zone = $22 per month per service per VPC. So for e.g. `SQS, SNS, KMS, STS, X-Ray, ECR, ECS` across all VPCs that is $154 a month with sharing.
+
+Vs $7,700 a month with 50 separate VPCs!
 
 ### How do I access my machines if they are all in private subnets?
 
