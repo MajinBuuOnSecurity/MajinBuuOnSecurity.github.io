@@ -304,7 +304,7 @@ This is because incoming traffic first hits the IGW, then the EC2. Nothing else 
 
 As for why it cannot respond to traffic. For a private subnet, the route table -- which is only consulted for outgoing traffic -- will have a path to a NAT Gateway, not the IGW. So response packets will have the source IP of the NAT Gateway rather than the EC2 instance, messing up e.g. the TCP handshake.[^9133]
 
-[^9133]: Yet another shout out to Aiden Steele who [wrote about this in another context](https://twitter.com/__steele/status/1572752577648726016).
+[^9133]: Yet another shout out to Aiden Steele who [wrote about this in another context](https://twitter.com/__steele/status/1572752577648726016), and has [visuals / code here](https://github.com/aidansteele/matconnect#matconnect).
 
 With VPC sharing, you can control the NACL but not the Security Group. A NACL won't be able to help however, because an Ingress deny rule blocking the Internet from hitting the EC2 will also block responses from the Internet to Egress Traffic.
 
