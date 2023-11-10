@@ -166,7 +166,7 @@
 
 <h2 id="supporting-egress-in-private-vpc-accounts">Supporting Egress in Private VPC Accounts</h2>
 
-<p>To support the Egress use-case, you must ensure your network architecture tightly couples a NAT Gateway with an Internet Gateway by, e.g., giving subaccounts a paved path to a NAT Gateway in another account. You can do this via:</p>
+<p>To support the Egress use-case, you must ensure your network architecture tightly couples NAT with an Internet Gateway by, e.g., giving subaccounts a paved path to a NAT Gateway in another account. You can do this via:</p>
 
 <ol>
   <li><a href="#option-1-centralized-egress-via-transit-gateway-tgw">Centralized Egress via Transit Gateway (TGW)</a></li>
@@ -177,7 +177,7 @@
 
 <p>Hopefully, one of these options will align with the goals of your networking team.</p>
 
-<p>My recommendation is to go with TGW for most accounts, and VPC Sharing for sandbox/test accounts. Once you are ready to implement Egress Filtering, use PrivateLink + Egress Filtering.</p>
+<p>My recommendation is to go with TGW for most accounts, and VPC Sharing for sandbox accounts. Once you are ready to implement Egress Filtering, use PrivateLink + Egress Filtering.</p>
 
 <h3 id="option-1-centralized-egress-via-transit-gateway-tgw">Option 1: Centralized Egress via Transit Gateway (TGW)</h3>
 
@@ -230,7 +230,7 @@
   <li>If something goes wrong on the host, the lost traffic will not appear in VPC flow logs <sup id="fnref:98" role="doc-noteref"><a href="#fn:98" class="footnote" rel="footnote">3</a></sup> or traffic mirroring logs.<sup id="fnref:985" role="doc-noteref"><a href="#fn:985" class="footnote" rel="footnote">4</a></sup> The DNS lookups will show up in Route53 query logs, but that’s it.</li>
 </ul>
 
-<p>With that said, AWS does not have a primitive to perform Egress filtering,<sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">5</a></sup> so you will eventually have to implement Egress filtering via a proxy. Therefore, in production accounts, you can go with this option. For sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).</p>
+<p>With that said, AWS does not have a primitive to perform Egress filtering,<sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">5</a></sup> so you will eventually have to implement Egress filtering via a proxy. Therefore, in e.g. production accounts, you can go with this option.</p>
 
 <p>Using PrivateLink, in this way, would look like this:</p>
 
@@ -252,8 +252,8 @@
 <p>Being limited to private subnets helps with 2 problems:</p>
 
 <ol>
-  <li>Engineers can launch EC2 instances and you won’t have to worry about them implicitly getting a public IP address</li>
-  <li>Engineers can create Internet-facing Load Balancers, as <code class="language-plaintext highlighter-rouge">CreateLoadBalancer</code> requires that a public subnet be provided</li>
+  <li>Engineers can launch EC2 instances and you won’t have to worry about them implicitly getting a public IP address.</li>
+  <li>Engineers can create Load Balancers, but never Internet-facing ones. As <code class="language-plaintext highlighter-rouge">CreateLoadBalancer</code> requires that a public subnet be provided.</li>
 </ol>
 
 <p>However, an engineer can still make Internet-facing assets with e.g.</p>
@@ -267,22 +267,17 @@
 
 <h4 id="why-a-public-ip-in-a-private-subnet-is-not-concerning">Why a public IP in a private subnet is not concerning</h4>
 
-<p>TODO: IF YOU HAVE A VPC WITHOUT AN IGW, CAN YOU GIVE A PUBLIC IP VIA <code class="language-plaintext highlighter-rouge">AssociatePublicIpAddress</code> OR EIP? It shouldn’t work I would think.</p>
+<p>TODO: IF YOU HAVE A VPC WITHOUT AN IGW, CAN YOU GIVE A PUBLIC IP VIA <code class="language-plaintext highlighter-rouge">AssociatePublicIpAddress</code> OR EIP? It shouldn’t work I would think, nothing to do static NAT.</p>
 
-<p>An engineer can call <code class="language-plaintext highlighter-rouge">ec2:RunInstances</code> with the <code class="language-plaintext highlighter-rouge">"ec2:AssociatePublicIpAddress</code> condition key set to <code class="language-plaintext highlighter-rouge">"true"</code>, or through associating an EIP with an instance, both these actions should be blocked <a href="https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29">via SCP</a> too.</p>
+<p>An engineer can call <code class="language-plaintext highlighter-rouge">ec2:RunInstances</code> with the <code class="language-plaintext highlighter-rouge">"ec2:AssociatePublicIpAddress</code> condition key set to <code class="language-plaintext highlighter-rouge">"true"</code>, or through associating an EIP with an instance. Both of these actions should be blocked <a href="https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29">via SCP</a>.</p>
 
-<p>However, it is interesting to note, that it wouldn’t be too severe if it did.</p>
+<p>However, it is interesting to note, that it wouldn’t be too severe if it happened.</p>
 
-<p>As Aiden Steele wrote on Twitter:</p>
+<p>If an EC2 is in a private subnet, in a VPC with an IGW, and has a public IP, you can send packets to it from the Internet. Fortunely the EC2 can’t really respond.</p>
 
-<blockquote class="twitter-tweet" data-conversation="none"><p lang="en" dir="ltr">Typically you would expect that connectivity between instances A and B isn&#39;t possible - `ping` fails to yield responses after all. But it turns out that an instance with a public IP address in a VPC with an IGW attached can _receive_ traffic - it just can&#39;t respond to it.</p>&mdash; Aidan W Steele (@__steele) <a href="https://twitter.com/__steele/status/1572752577648726016?ref_src=twsrc%5Etfw">September 22, 2022</a></blockquote>
-<script async="" src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<p>This is because the route table that a subnet is associated with is only checked on outgoing traffic, not incoming traffic.</p>
 
-<p>If an EC2 is in a private subnet, in a VPC with an IGW, and has a public IP, you can send packets to it from the Internet.</p>
-
-<p>This is because the route table that a subnet is associated with is only checked on outgoing traffic, not incoming traffic. The IGW simply does static NAT and nothing else.</p>
-
-<p>As for why it cannot respond to traffic. For a private subnet, the route table will have a path to a NAT Gateway, so response packets will have the source IP of the NAT Gateway rather than the EC2 instance.</p>
+<p>As for why it cannot respond to traffic. For a private subnet, the route table will have a path to a NAT Gateway, so response packets will have the source IP of the NAT Gateway rather than the EC2 instance.<sup id="fnref:9133" role="doc-noteref"><a href="#fn:9133" class="footnote" rel="footnote">7</a></sup></p>
 
 <p>TODO: GET MY NMAP SCREENSHOTS</p>
 
@@ -294,7 +289,7 @@
 
 <p>You might think that, since NACLs support to deny rules, you could add an Ingress deny rule blocking the Internet from hitting the EC2s in the private subnet.</p>
 
-<p>Unfortunately, because NACLs are stateless, any responses from the Internet to outbound traffic would be dropped.</p>
+<p>Unfortunately, because NACLs are stateless, Egress traffic to the Internet would have all responses blocked by the NACL.</p>
 
 <h4 id="a-strategic-implication-of-vpc-sharing">A Strategic Implication of VPC Sharing</h4>
 
@@ -309,7 +304,7 @@
 <p>If you are like most AWS customers:</p>
 <ul>
   <li>The Management Account of your AWS Organization has most of your resources in it</li>
-  <li>You want to follow Best Practices<sup id="fnref:996221" role="doc-noteref"><a href="#fn:996221" class="footnote" rel="footnote">7</a></sup> and have an empty Management Account</li>
+  <li>You want to follow Best Practices<sup id="fnref:996221" role="doc-noteref"><a href="#fn:996221" class="footnote" rel="footnote">8</a></sup> and have an empty Management Account</li>
   <li>It is infeasible to ‘empty’ out the current management account over time</li>
 </ul>
 
@@ -573,6 +568,9 @@
     </li>
     <li id="fn:996" role="doc-endnote">
       <p>Shout out to <a href="https://awsteele.com/blog/2022/01/02/shared-vpcs-are-underrated.html">Aiden Steele</a> and <a href="https://sjramblings.io/unlock-the-hidden-power-of-vpc-sharing-in-aws">Stephen Jones</a> for writing their thoughts on VPC Sharing. <a href="#fnref:996" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:9133" role="doc-endnote">
+      <p>Yet another shout out to Aiden Steele who <a href="https://twitter.com/__steele/status/1572752577648726016">wrote about this in another context</a>. <a href="#fnref:9133" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:996221" role="doc-endnote">
       <p>This is Stage 1 of Scott’s <a href="https://summitroute.com/downloads/aws_security_maturity_roadmap-Summit_Route.pdf">AWS Security Maturity Roadmap</a>, for example. <a href="#fnref:996221" class="reversefootnote" role="doc-backlink">&#8617;</a></p>

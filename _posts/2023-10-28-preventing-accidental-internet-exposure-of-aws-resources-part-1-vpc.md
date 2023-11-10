@@ -42,7 +42,7 @@ The Egress use-case typically looks like:
 
 ## Supporting Egress in Private VPC Accounts
 
-To support the Egress use-case, you must ensure your network architecture tightly couples a NAT Gateway with an Internet Gateway by, e.g., giving subaccounts a paved path to a NAT Gateway in another account. You can do this via:
+To support the Egress use-case, you must ensure your network architecture tightly couples NAT with an Internet Gateway by, e.g., giving subaccounts a paved path to a NAT Gateway in another account. You can do this via:
 
 1. [Centralized Egress via Transit Gateway (TGW)](#option-1-centralized-egress-via-transit-gateway-tgw)
 2. [Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering](#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-egress-filtering)
@@ -51,7 +51,7 @@ To support the Egress use-case, you must ensure your network architecture tightl
 
 Hopefully, one of these options will align with the goals of your networking team.
 
-My recommendation is to go with TGW for most accounts, and VPC Sharing for sandbox/test accounts. Once you are ready to implement Egress Filtering, use PrivateLink + Egress Filtering.
+My recommendation is to go with TGW for most accounts, and VPC Sharing for sandbox accounts. Once you are ready to implement Egress Filtering, use PrivateLink + Egress Filtering.
 
 ### Option 1: Centralized Egress via Transit Gateway (TGW)
 
@@ -102,7 +102,7 @@ Some reasons you may not want to do this are:
 - Egress filtering is lower-priority than preventing accidental Internet-exposure. So tightly coupling the two and needing to setup a proxy first may not make strategic sense.
 - If something goes wrong on the host, the lost traffic will not appear in VPC flow logs [^98] or traffic mirroring logs.[^985] The DNS lookups will show up in Route53 query logs, but that's it.
 
-With that said, AWS does not have a primitive to perform Egress filtering,[^99] so you will eventually have to implement Egress filtering via a proxy. Therefore, in production accounts, you can go with this option. For sandbox accounts, use a different centralized egress pattern e.g. VPC sharing (which will not disrupt an org migration due to their ephemeral nature).
+With that said, AWS does not have a primitive to perform Egress filtering,[^99] so you will eventually have to implement Egress filtering via a proxy. Therefore, in e.g. production accounts, you can go with this option.
 
 Using PrivateLink, in this way, would look like this:
 
@@ -131,8 +131,8 @@ The main problem with this approach, is that there will _still be an Internet Ga
 
 Being limited to private subnets helps with 2 problems:
 
-1. Engineers can launch EC2 instances and you won't have to worry about them implicitly getting a public IP address
-2. Engineers can create Internet-facing Load Balancers, as `CreateLoadBalancer` requires that a public subnet be provided
+1. Engineers can launch EC2 instances and you won't have to worry about them implicitly getting a public IP address.
+2. Engineers can create Load Balancers, but never Internet-facing ones. As `CreateLoadBalancer` requires that a public subnet be provided.
 
 However, an engineer can still make Internet-facing assets with e.g.
 
@@ -143,21 +143,19 @@ I will discuss addressing the risk of these services more in the [next part](htt
 
 #### Why a public IP in a private subnet is not concerning
 
-TODO: IF YOU HAVE A VPC WITHOUT AN IGW, CAN YOU GIVE A PUBLIC IP VIA `AssociatePublicIpAddress` OR EIP? It shouldn't work I would think.
+TODO: IF YOU HAVE A VPC WITHOUT AN IGW, CAN YOU GIVE A PUBLIC IP VIA `AssociatePublicIpAddress` OR EIP? It shouldn't work I would think, nothing to do static NAT.
 
-An engineer can call `ec2:RunInstances` with the `"ec2:AssociatePublicIpAddress` condition key set to `"true"`, or through associating an EIP with an instance, both these actions should be blocked [via SCP](https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29) too.
+An engineer can call `ec2:RunInstances` with the `"ec2:AssociatePublicIpAddress` condition key set to `"true"`, or through associating an EIP with an instance. Both of these actions should be blocked [via SCP](https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29).
 
-However, it is interesting to note, that it wouldn't be too severe if it did.
+However, it is interesting to note, that it wouldn't be too severe if it happened.
 
-As Aiden Steele wrote on Twitter:
+If an EC2 is in a private subnet, in a VPC with an IGW, and has a public IP, you can send packets to it from the Internet. Fortunely the EC2 can't really respond.
 
-<blockquote class="twitter-tweet" data-conversation="none"><p lang="en" dir="ltr">Typically you would expect that connectivity between instances A and B isn&#39;t possible - `ping` fails to yield responses after all. But it turns out that an instance with a public IP address in a VPC with an IGW attached can _receive_ traffic - it just can&#39;t respond to it.</p>&mdash; Aidan W Steele (@__steele) <a href="https://twitter.com/__steele/status/1572752577648726016?ref_src=twsrc%5Etfw">September 22, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+This is because the route table that a subnet is associated with is only checked on outgoing traffic, not incoming traffic.
 
-If an EC2 is in a private subnet, in a VPC with an IGW, and has a public IP, you can send packets to it from the Internet.
+As for why it cannot respond to traffic. For a private subnet, the route table will have a path to a NAT Gateway, so response packets will have the source IP of the NAT Gateway rather than the EC2 instance.[^9133]
 
-This is because the route table that a subnet is associated with is only checked on outgoing traffic, not incoming traffic. The IGW simply does static NAT and nothing else.
-
-As for why it cannot respond to traffic. For a private subnet, the route table will have a path to a NAT Gateway, so response packets will have the source IP of the NAT Gateway rather than the EC2 instance.
+[^9133]: Yet another shout out to Aiden Steele who [wrote about this in another context](https://twitter.com/__steele/status/1572752577648726016).
 
 TODO: GET MY NMAP SCREENSHOTS
 
@@ -169,7 +167,7 @@ TODO: Also do ifconfig test
 
 You might think that, since NACLs support to deny rules, you could add an Ingress deny rule blocking the Internet from hitting the EC2s in the private subnet.
 
-Unfortunately, because NACLs are stateless, any responses from the Internet to outbound traffic would be dropped.
+Unfortunately, because NACLs are stateless, Egress traffic to the Internet would have all responses blocked by the NACL.
 
 #### A Strategic Implication of VPC Sharing
 
