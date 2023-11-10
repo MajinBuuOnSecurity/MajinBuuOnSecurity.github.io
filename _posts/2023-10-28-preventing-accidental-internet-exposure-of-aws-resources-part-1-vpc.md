@@ -83,7 +83,7 @@ Sending huge amounts of data through a NAT Gateway should be avoided anyway.
 [^1350]: There are some companies with agents meant to be deployed on EC2s that do not offer a VPC endpoint, [perhaps](https://sso.tax/) a [wall](https://fido.fail/) of [shame](https://github.com/SummitRoute/imdsv2_wall_of_shame#imdsv2-wall-of-shame) can be made.
 
 
-The following is a graph, [generated with Python](https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5). As you can see at e.g. 20 VPCs you'd need to be sending over 55 TB for centralized egress to be more expensive, it only gets more worth while the more VPCs you add.
+The following is a graph, [generated with Python](https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5). As you can see at e.g. 20 VPCs you'd need to be sending over 55 TB for centralized egress to be more expensive, it only gets more worthwhile the more VPCs you add.
 ![alt text](https://i.imgur.com/fxKEToY.png)
 
 See [the FAQ](#can-you-walk-through-the-cost-details-around-option-1) for a verbose example.
@@ -219,7 +219,7 @@ Will Prevent Org Migration | False                                  | False     
 
 ### Can you walk through the cost details around Option 1?
 
-Note: This is assuming US East, 100 VPCs and 3 AZs. If you want to change these variables, see the [Python gist](https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5) that made [the graph above](#option-1-centralized-egress-via-transit-gateway-tgw).
+_Note: This is assuming US East, 100 VPCs and 3 AZs. If you want to change these variables, see the [Python gist](https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5) that made [the graph above](#option-1-centralized-egress-via-transit-gateway-tgw)._
 
 #### Cost Example: No Centralized Egress
 

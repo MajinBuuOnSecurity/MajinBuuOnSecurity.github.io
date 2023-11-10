@@ -208,7 +208,7 @@
 <p>Sending huge amounts of data through a NAT Gateway should be avoided anyway.
 <a href="https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html">S3</a>, <a href="https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html">Splunk</a>, <a href="https://docs.honeycomb.io/integrations/aws/aws-privatelink/">Honeycomb</a>, and similar companies<sup id="fnref:1350" role="doc-noteref"><a href="#fn:1350" class="footnote" rel="footnote">2</a></sup> have VPC endpoints you can utilize to lower NAT Gateway data processing charges.</p>
 
-<p>The following is a graph, <a href="https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5">generated with Python</a>. As you can see at e.g. 20 VPCs you’d need to be sending over 55 TB for centralized egress to be more expensive, it only gets more worth while the more VPCs you add.
+<p>The following is a graph, <a href="https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5">generated with Python</a>. As you can see at e.g. 20 VPCs you’d need to be sending over 55 TB for centralized egress to be more expensive, it only gets more worthwhile the more VPCs you add.
 <img src="https://i.imgur.com/fxKEToY.png" alt="alt text" /></p>
 
 <p>See <a href="#can-you-walk-through-the-cost-details-around-option-1">the FAQ</a> for a verbose example.</p>
@@ -385,7 +385,7 @@
 
 <h3 id="can-you-walk-through-the-cost-details-around-option-1">Can you walk through the cost details around Option 1?</h3>
 
-<p>Note: This is assuming US East, 100 VPCs and 3 AZs. If you want to change these variables, see the <a href="https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5">Python gist</a> that made <a href="#option-1-centralized-egress-via-transit-gateway-tgw">the graph above</a>.</p>
+<p><em>Note: This is assuming US East, 100 VPCs and 3 AZs. If you want to change these variables, see the <a href="https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5">Python gist</a> that made <a href="#option-1-centralized-egress-via-transit-gateway-tgw">the graph above</a>.</em></p>
 
 <h4 id="cost-example-no-centralized-egress">Cost Example: No Centralized Egress</h4>
 
