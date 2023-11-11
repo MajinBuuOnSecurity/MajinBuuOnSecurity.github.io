@@ -160,7 +160,7 @@ If you are like most AWS customers:
 
 [^996221]: This is Stage 1 of Scott's [AWS Security Maturity Roadmap](https://summitroute.com/downloads/aws_security_maturity_roadmap-Summit_Route.pdf), for example.
 
-Then you will need to perform an org migration in the future, and should stay away from VPC Sharing.
+Then you will need to perform an org migration in the future, and should stay away from VPC Sharing for any environments you can't delete easily.
 
 However, suppose you are willing to risk a production outage 😂 (Particularly if you do not use ASGs or Load Balancers, which will lose access to the subnets.) The NAT Gateway will remain functional according to AWS.
 
@@ -275,8 +275,7 @@ If you try to disable "[Source/destination checking](https://docs.aws.amazon.com
 
 _Assuming you would have 50 spoke VPCs and were in US East._
 
-
-If you are making 1 giant VPC, and sharing different subnets to each subaccount. Each option would have 1 NAT Gateway, so in that way they are the same.
+If you are making 1 giant VPC, and sharing different subnets to each subaccount, then both options would have 1 NAT Gateway. The only difference is a TGW:
 
 > 1 Transit Gateway: with (50 + 1) VPC attachments, at 0.05 [per hour](https://aws.amazon.com/transit-gateway/pricing/). 51 * 730.48 * 0.05  = $1,862.72 per month.
 
