@@ -248,20 +248,20 @@
 
 <p>The reason why PrivateLink was mostly a non-option was that interface endpoint ENIs have “<a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics">Source/destination checking</a>” enabled, and <a href="#why-is-vpc-privatelink-not-a-straightforward-option">you cannot disable it since it is managed by AWS</a>.</p>
 
-<p>However, Gateway Load Balancer endpoint ENIs <em>with “<a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics">Source/destination checking</a>” disabled!</em>  This is to accompany their intended use-case of inspecting traffic.</p>
+<p>However, Gateway Load Balancer endpoint ENIs <em>have “<a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics">Source/destination checking</a>” disabled!</em>  This is to accompany their intended use-case of inspecting traffic.</p>
 
 <p>This enables us to send 0.0.0.0/0 destined traffic to a GWLBe, in the same way we did for the TGW in Option 1.</p>
 
 <p>This looks like:
 <img src="https://i.imgur.com/tIQaTa0.png" alt="alt text" /></p>
 
-<p>(Note that no NAT Gateway is necessary here, as the firewall is running in an public subnet and performing NAT. AWS calls this <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/best-practices-for-deploying-gateway-load-balancer/">two-arm mode</a>.)</p>
+<p>(Note that no NAT Gateway is necessary here, as the firewall is running in an public subnet and performing NAT. <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/best-practices-for-deploying-gateway-load-balancer/">AWS</a> and <a href="https://networkgeekstuff.com/networking/basic-load-balancer-scenarios-explained/">others</a> call this two-arm mode.)</p>
 
 <p>Security-wise, unfortunately, unless they do decryption, firewalls can’t filter on URL path – for example, you can’t block all of github.com except for github.com/mycompany. The better vendors don’t seem to offer decryption, I think you’re better off using a proxy (i.e. the previous option) if you want to filter on URL paths.</p>
 
 <p>Because the firewall needs to support Geneve encapsulation, be invulnerable to SNI spoofing, fast, reliable and not <a href="https://chasersystems.com/discriminat/faq/#are-the-out-of-band-dns-lookups-susceptible-to-ip-address-mismatches">susceptible to IP address mismatches</a>. It is not easy to create an open-source alternative to DiscrimiNAT.</p>
 
-<p>DiscrimiNAT seems superior to Palo Alto Firewall<sup id="fnref:99351" role="doc-noteref"><a href="#fn:99351" class="footnote" rel="footnote">7</a></sup> as you just <a href="https://chasersystems.com/docs/discriminat/aws/quick-start/#viii-configuring-a-whitelist">edit some security group descriptions to configure it</a>, and don’t need to sift through a mountain of convoluted materials or UI/UX from the 90s. However, they would need to add subaccount support for the diagram above to work, to read the security groups.</p>
+<p><a href="https://github.com/ChaserSystems/terraform-aws-discriminat-gwlb#deployment-examples">DiscrimiNAT</a> seems superior to Palo Alto Firewall<sup id="fnref:99351" role="doc-noteref"><a href="#fn:99351" class="footnote" rel="footnote">7</a></sup> as you just <a href="https://chasersystems.com/docs/discriminat/aws/quick-start/#viii-configuring-a-whitelist">edit some security group descriptions to configure it</a>, and don’t need to sift through a mountain of convoluted materials or UI/UX from the 90s. However, DiscrimiNAT would need to add subaccount support for the diagram above to work, to read the security groups.</p>
 
 <h3 id="option-4-vpc-sharing">Option 4: VPC Sharing</h3>
 

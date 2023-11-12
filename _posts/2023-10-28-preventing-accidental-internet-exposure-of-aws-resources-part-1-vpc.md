@@ -126,20 +126,20 @@ TODO: Re-write this section.
 
 The reason why PrivateLink was mostly a non-option was that interface endpoint ENIs have "[Source/destination checking](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics)" enabled, and [you cannot disable it since it is managed by AWS](#why-is-vpc-privatelink-not-a-straightforward-option).
 
-However, Gateway Load Balancer endpoint ENIs _with "[Source/destination checking](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics)" disabled!_  This is to accompany their intended use-case of inspecting traffic.
+However, Gateway Load Balancer endpoint ENIs _have "[Source/destination checking](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics)" disabled!_  This is to accompany their intended use-case of inspecting traffic.
 
 This enables us to send 0.0.0.0/0 destined traffic to a GWLBe, in the same way we did for the TGW in Option 1.
 
 This looks like:
 ![alt text](https://i.imgur.com/tIQaTa0.png)
 
-(Note that no NAT Gateway is necessary here, as the firewall is running in an public subnet and performing NAT. AWS calls this [two-arm mode](https://aws.amazon.com/blogs/networking-and-content-delivery/best-practices-for-deploying-gateway-load-balancer/).)
+(Note that no NAT Gateway is necessary here, as the firewall is running in an public subnet and performing NAT. [AWS](https://aws.amazon.com/blogs/networking-and-content-delivery/best-practices-for-deploying-gateway-load-balancer/) and [others](https://networkgeekstuff.com/networking/basic-load-balancer-scenarios-explained/) call this two-arm mode.)
 
 Security-wise, unfortunately, unless they do decryption, firewalls can't filter on URL path -- for example, you can't block all of github.com except for github.com/mycompany. The better vendors don't seem to offer decryption, I think you're better off using a proxy (i.e. the previous option) if you want to filter on URL paths.
 
 Because the firewall needs to support Geneve encapsulation, be invulnerable to SNI spoofing, fast, reliable and not [susceptible to IP address mismatches](https://chasersystems.com/discriminat/faq/#are-the-out-of-band-dns-lookups-susceptible-to-ip-address-mismatches). It is not easy to create an open-source alternative to DiscrimiNAT.
 
-DiscrimiNAT seems superior to Palo Alto Firewall[^99351] as you just [edit some security group descriptions to configure it](https://chasersystems.com/docs/discriminat/aws/quick-start/#viii-configuring-a-whitelist), and don't need to sift through a mountain of convoluted materials or UI/UX from the 90s. However, they would need to add subaccount support for the diagram above to work, to read the security groups.
+[DiscrimiNAT](https://github.com/ChaserSystems/terraform-aws-discriminat-gwlb#deployment-examples) seems superior to Palo Alto Firewall[^99351] as you just [edit some security group descriptions to configure it](https://chasersystems.com/docs/discriminat/aws/quick-start/#viii-configuring-a-whitelist), and don't need to sift through a mountain of convoluted materials or UI/UX from the 90s. However, DiscrimiNAT would need to add subaccount support for the diagram above to work, to read the security groups.
 
 [^99351]: This is just my 1st impressions. [Dhruv](https://github.com/new23d) didn't pay me to write this.
 
