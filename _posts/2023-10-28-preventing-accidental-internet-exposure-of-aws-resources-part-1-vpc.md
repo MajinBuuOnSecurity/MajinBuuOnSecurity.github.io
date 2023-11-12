@@ -46,8 +46,9 @@ To support the Egress use-case, you must ensure your network architecture tightl
 
 1. [Centralized Egress via Transit Gateway (TGW)](#option-1-centralized-egress-via-transit-gateway-tgw)
 2. [Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering](#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-egress-filtering)
-3. [VPC Sharing](#option-3-vpc-sharing)
-4. [IPv6 for Egress](#option-4-ipv6-for-egress)
+3. [Centralized Egress via Gateway Load Balancer (GWLB)](#option-3-centralized-egress-via-gateway-load-balancer-gwlb-with-firewall)
+4. [VPC Sharing](#option-4-vpc-sharing)
+5. [IPv6 for Egress](#option-5-ipv6-for-egress)
 
 Hopefully, one of these options will align with the goals of your networking team.
 
@@ -102,13 +103,12 @@ Some reasons you may not want to do this are:
 - Egress filtering is lower-priority than preventing accidental Internet-exposure. So tightly coupling the two and needing to setup a proxy first may not make strategic sense.
 - If something goes wrong on the host, the lost traffic will not appear in VPC flow logs [^98] or traffic mirroring logs.[^985] The DNS lookups will show up in Route53 query logs, but that's it.
 
-With that said, AWS does not have a primitive to perform Egress filtering,[^99] so you will eventually have to implement Egress filtering via a proxy. Therefore, in e.g. production accounts, you can go with this option.
+With that said, AWS does not have a primitive to perform Egress filtering,[^99] so you will eventually have to implement Egress filtering via a proxy or GWLB. Therefore, in e.g. production accounts, you could go with this option.
 
 Using PrivateLink, in this way, would look like this:
-
 ![alt text](https://i.imgur.com/vg9rcTE.png)
 
-Note that not a single NAT Gateway is necessary here, as Envoy is running in an public subnet. 
+(Note that no NAT Gateway is necessary here, as Envoy is running in an public subnet.)
 
 [^98]: [Flow log limitations](https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html#flow-logs-limitations) does not state "Internet-bound traffic sent to a peering connection" or "Internet-bound traffic sent to a VPC interface endpoint." under `The following types of traffic are not logged:`. After testing I believe these are likely omitted due to not being a proper use-case.
 
@@ -116,7 +116,34 @@ Note that not a single NAT Gateway is necessary here, as Envoy is running in an 
 
 [^99]: It has [AWS Network Firewall](https://aws.amazon.com/network-firewall/faqs/), which can be fooled via SNI spoofing. So it is, at best, a stepping stone to keep an inventory of your Egress traffic if you can’t get a proxy up and running short-term and are not using TLS 1.3 with encrypted client hello (ECH) or encrypted SNI (ESNI). I cringe at how [the FAQ](https://aws.amazon.com/network-firewall/faqs/) says these are not supported, rather than a bypass of the product. Sadly this euphemism [isn't unique to AWS](https://i.imgur.com/dPyFaNK.png).
 
-### Option 3: VPC Sharing
+### Option 3: Centralized Egress via Gateway Load Balancer (GWLB) with Firewall
+
+TODO: Re-write this section.
+
+[GWLB](https://aws.amazon.com/blogs/aws/introducing-aws-gateway-load-balancer-easy-deployment-scalability-and-high-availability-for-partner-appliances/) is a service intended to enable the deployment of virtual appliances in the form of firewalls, intrusion detection/prevention systems and deep packet inspection systems. The appliances get sent the original traffic [encapsulated via the Geneve protocol](https://aws.amazon.com/blogs/networking-and-content-delivery/integrate-your-custom-logic-or-appliance-with-aws-gateway-load-balancer/).[^99328]
+
+[^99328]: The usual suspects [Aiden Steele](https://awsteele.com/blog/2022/01/20/aws-gwlb-deep-packet-manipulation.html), [Luc van Donkersgoed](https://web.archive.org/web/20220129101637/https://www.sentiatechblog.com/geneveproxy-an-aws-gateway-load-balancer-reference-application), and [Corey Quinn](https://www.lastweekinaws.com/blog/what-i-dont-get-about-the-aws-gateway-load-balancer/) have written about this feature.
+
+The reason why PrivateLink was mostly a non-option was that interface endpoint ENIs have "[Source/destination checking](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics)" enabled, and [you cannot disable it since it is managed by AWS](#why-is-vpc-privatelink-not-a-straightforward-option).
+
+However, Gateway Load Balancer endpoint ENIs _with "[Source/destination checking](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics)" disabled!_  This is to accompany their intended use-case of inspecting traffic.
+
+This enables us to send 0.0.0.0/0 destined traffic to a GWLBe, in the same way we did for the TGW in Option 1.
+
+This looks like:
+![alt text](https://i.imgur.com/tIQaTa0.png)
+
+(Note that no NAT Gateway is necessary here, as the firewall is running in an public subnet and performing NAT. AWS calls this [two-arm mode](https://aws.amazon.com/blogs/networking-and-content-delivery/best-practices-for-deploying-gateway-load-balancer/).)
+
+Security-wise, unfortunately, unless they do decryption, firewalls can't filter on URL path -- for example, you can't block all of github.com except for github.com/mycompany. The better vendors don't seem to offer decryption, I think you're better off using a proxy (i.e. the previous option) if you want to filter on URL paths.
+
+Because the firewall needs to support Geneve encapsulation, be invulnerable to SNI spoofing, fast, reliable and not [susceptible to IP address mismatches](https://chasersystems.com/discriminat/faq/#are-the-out-of-band-dns-lookups-susceptible-to-ip-address-mismatches). It is not easy to create an open-source alternative to DiscrimiNAT.
+
+DiscrimiNAT seems superior to Palo Alto Firewall[^99351] as you just [edit some security group descriptions to configure it](https://chasersystems.com/docs/discriminat/aws/quick-start/#viii-configuring-a-whitelist), and don't need to sift through a mountain of convoluted materials or UI/UX from the 90s. However, they would need to add subaccount support for the diagram above to work, to read the security groups.
+
+[^99351]: This is just my 1st impressions. [Dhruv](https://github.com/new23d) didn't pay me to write this.
+
+### Option 4: VPC Sharing
 
 This is a tempting, simple option, that is not well known.[^996]
 
@@ -137,7 +164,7 @@ Unless you also used a TGW:[^12202]
 
 Assuming you don't want to pay for TGW, you can ban actions that would explicitly give an instance in a private subnet a public IP.[^220220]
 
-[^220220]: See [the FAQ]() for what it means to have an EC2 in a private subnet have a public IP.
+[^220220]: See [the FAQ](#what-happens-if-an-ec2-instance-in-a-private-subnet-gets-a-public-ip) for what it means to have an EC2 in a private subnet have a public IP.
 
 This can be done by banning [`ec2:RunInstances` with the `"ec2:AssociatePublicIpAddress` condition key set to `"true"`](https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29), and EIP related IAM actions such as `ec2:AssociateAddress`.
 
@@ -170,7 +197,7 @@ See
 
 from [Migrating accounts between AWS Organizations, a network perspective](https://aws.amazon.com/blogs/networking-and-content-delivery/migrating-accounts-between-aws-organizations-from-a-network-perspective/) by Tedy Tirtawidjaja for more information.
 
-### Option 4: IPv6 for Egress
+### Option 5: IPv6 for Egress
 
 Remember how I said, "in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet" above. For IPv6, that's a lie.
 
@@ -190,13 +217,14 @@ The problem is the NAT Gateway then needs an IGW to communicate with the destina
 
 ### Tradeoffs
 
-Criteria                   | TGW                                    | PrivateLink + Egress Filtering      | VPC Sharing                           | IPv6-Only
+Criteria                   | TGW                                    | PrivateLink + Egress Filtering      | GWLB + Firewall                       | VPC Sharing                           | IPv6-Only
 -------------------------- | ---------------------------------------| ------------------------------------| --------------------------------------| ---------
-AWS Billing Cost           | <span style="color:red">Highest</span> | Low                              | Low                                | Low
-Complexity*                | Medium                                 | <span style="color:red">High</span> | Low                                   | Medium
-Scalability*               | High                                   | High                                | Low                                   | Medium
-Flexibility*               | High                                   | High                                | Medium                                | <span style="color:red">Lowest</span>
-Will Prevent Org Migration | False                                  | False                               | <span style="color:red">True</span>   | False
+AWS Billing Cost           | <span style="color:red">High</span>    | Low                                 | <span style="color:red">High</span>   | Low                                   | Low
+Complexity*                | Medium                                 | <span style="color:red">High</span> | Medium                                | Low                                   | Medium
+Scalability*               | High                                   | High                                | High                                  | Low                                   | Medium
+Flexibility*               | High                                   | High                                | High                                  | Medium                                | <span style="color:red">Lowest</span>
+Filtering Granularity      | None                                   | FQDN or URL Path (If desired)       | FQDN                                 | None                                 | None
+Will Prevent Org Migration | False                                  | False                               | False                                 | <span style="color:red">True</span>   | False
 
 \* = YMMV
 
@@ -269,7 +297,7 @@ The reasoning is similar to peering: PrivateLink is not meant to be transitive.
 
 To dive deeper: When you make an interface VPC endpoint with AWS PrivateLink, a "[requester-managed network interface](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/requester-managed-eni.html)" is created. The "requester" is AWS, as you can see by the mysterious "727180483921" account ID.
 
-If you try to disable "[Source/destination checking](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics)" (which ensures that the ENI is either the source or the destination of any traffic it receives), you will not be able to. So traffic is dropped before it would ever travel cross-account.
+If you try to disable "[Source/destination checking](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics)" (which ensures that the ENI is either the source or the destination of any traffic it receives), you will not be able to, since it is managed by AWS. So traffic is dropped before it would ever travel cross-account.
 
 ### How much cheaper is VPC Sharing than TGW?
 
@@ -303,7 +331,7 @@ This is because incoming traffic first hits the IGW, then the EC2. Nothing else 
 
 As for why it cannot respond to traffic. For a private subnet, the route table -- which is only consulted for outgoing traffic -- will have a path to a NAT Gateway, not the IGW. So response packets will have the source IP of the NAT Gateway rather than the EC2 instance, messing up e.g. the TCP handshake.[^9133]
 
-[^9133]: Yet another shout out to Aiden Steele who [wrote about this in another context](https://twitter.com/__steele/status/1572752577648726016), and has [visuals / code here](https://github.com/aidansteele/matconnect#matconnect).
+[^9133]: A 3rd shout out to Aiden Steele who [wrote about this in another context](https://twitter.com/__steele/status/1572752577648726016), and has [visuals / code here](https://github.com/aidansteele/matconnect#matconnect).
 
 With VPC sharing, you can control the NACL but not the Security Group. A NACL won't be able to help however, because an Ingress deny rule blocking the Internet from hitting the EC2 will also block responses from the Internet to Egress Traffic.
 
