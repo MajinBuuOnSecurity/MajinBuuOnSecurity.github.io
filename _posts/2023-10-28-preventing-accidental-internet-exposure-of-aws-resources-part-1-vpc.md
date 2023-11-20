@@ -4,13 +4,13 @@ toc: true
 title: "[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)"
 ---
 
-[Many AWS customers have suffered breaches](https://github.com/ramimac/aws-customer-security-incidents#background) due to exposing resources to the Internet by accident, resources that an attacker can find via traditional public IP network scanning or [searching Shodan](https://maia.crimew.gay/posts/how-to-hack-an-airline/). This three-part series walks through different ways to mitigate that risk.
+[Many AWS customers have suffered breaches](https://github.com/ramimac/aws-customer-security-incidents#background) due to exposing resources to the Internet by accident. This three-part series walks through different ways to mitigate that risk.
 
 ## About The Problem
 
 There are many ways to make resources public in AWS. [github.com/SummitRoute/aws_exposable_resources](https://github.com/SummitRoute/aws_exposable_resources#aws-exposable-resources) was created specifically to maintain a list of all AWS resources that can be publicly exposed and how.
 
-This post discusses preventing public network access for resources exclusively in a VPC (EC2 instances, ELBs, RDS databases, etc.).
+This post discusses preventing public network access for resources exclusively in a VPC (EC2 instances, ELBs, RDS databases, etc.). These are resources that an attackers find via traditional public IP network scanning or [searching Shodan](https://maia.crimew.gay/posts/how-to-hack-an-airline/).
 
 Ideally, you can look at your AWS organization structure from a 1000-foot view and know which subtree of accounts / OUs can have publicly accessible VPCs.
 
@@ -45,14 +45,15 @@ The Egress use-case typically looks like:
 To support the Egress use-case, you must ensure your network architecture tightly couples NAT with an Internet Gateway by, e.g., giving subaccounts a paved path to a NAT Gateway in another account. You can do this via:
 
 1. [Centralized Egress via Transit Gateway (TGW)](#option-1-centralized-egress-via-transit-gateway-tgw)
-2. [Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering](#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-egress-filtering)
-3. [Centralized Egress via Gateway Load Balancer (GWLB)](#option-3-centralized-egress-via-gateway-load-balancer-gwlb-with-firewall)
+2. [Centralized Egress via PrivateLink (or VPC Peering) with Proxy](#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-proxy)
+3. [Centralized Egress via Gateway Load Balancer (GWLB) with Firewall](#option-3-centralized-egress-via-gateway-load-balancer-gwlb-with-firewall)
 4. [VPC Sharing](#option-4-vpc-sharing)
 5. [IPv6 for Egress](#option-5-ipv6-for-egress)
 
 Hopefully, one of these options will align with the goals of your networking team.
 
-My recommendation is to go with TGW for most accounts, and VPC Sharing for sandbox accounts. Once you are ready to implement Egress Filtering, use PrivateLink + Egress Filtering.
+My recommendation:
+![alt text](https://i.imgur.com/V7IYxO9.png)
 
 ### Option 1: Centralized Egress via Transit Gateway (TGW)
 
@@ -80,16 +81,17 @@ On the other hand, they also say:
 Sending huge amounts of data through a NAT Gateway should be avoided anyway.
 [S3](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html), [Splunk](https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html), [Honeycomb](https://docs.honeycomb.io/integrations/aws/aws-privatelink/), and similar companies[^1350] have VPC endpoints you can utilize to lower NAT Gateway data processing charges.
 
-
-[^1350]: There are some companies with agents meant to be deployed on EC2s that do not offer a VPC endpoint, [perhaps](https://sso.tax/) a [wall](https://fido.fail/) of [shame](https://github.com/SummitRoute/imdsv2_wall_of_shame#imdsv2-wall-of-shame) can be made.
+[^1350]: There are some companies with agents meant to be deployed on EC2s that do not offer a VPC endpoint, or charge an exorbitant fee, [perhaps](https://sso.tax/) a [wall](https://fido.fail/) of [shame](https://github.com/SummitRoute/imdsv2_wall_of_shame#imdsv2-wall-of-shame) can be made. Chime [mentioned](https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb): `"Although our vendor offers PrivateLink, they have also chosen to monetize it, charging so much for access to the feature that it was not a viable option."`
 
 
 The following is a graph, [generated with Python](https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5). As you can see at e.g. 20 VPCs you'd need to be sending over 55 TB for centralized egress to be more expensive, it only gets more worthwhile the more VPCs you add.
 ![alt text](https://i.imgur.com/fxKEToY.png)
 
+Chime is one one of the edge cases AWS mentioned, they mentioned _petabytes_ of data and [saving 7 figures getting rid of NAT Gateways](https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb). For them, TGW would break the bank. 1 PB of data transferred would require 324 VPCs to break even, and 2 PB would require 646 VPCs.
+
 See [the FAQ](#can-you-walk-through-the-cost-details-around-option-1) for a verbose example.
 
-### Option 2: Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering
+### Option 2: Centralized Egress via PrivateLink (or VPC Peering) with Proxy
 
 PrivateLink and VPC Peering are mostly non-options. See the [FAQ](#why-is-vpc-peering-not-a-straightforward-option) for more information.
 
@@ -217,7 +219,7 @@ The problem is the NAT Gateway then needs an IGW to communicate with the destina
 
 ### Tradeoffs
 
-Criteria                   | TGW                                    | PrivateLink + Egress Filtering      | GWLB + Firewall                       | VPC Sharing                           | IPv6-Only
+Criteria                   | TGW                                    | PrivateLink + Proxy                 | GWLB + Firewall                       | VPC Sharing                           | IPv6-Only
 -------------------------- | ---------------------------------------| ------------------------------------| --------------------------------------| ---------
 AWS Billing Cost           | <span style="color:red">High</span>    | Low                                 | <span style="color:red">High</span>   | Low                                   | Low
 Complexity*                | Medium                                 | <span style="color:red">High</span> | Medium                                | Low                                   | Medium
@@ -323,17 +325,44 @@ Vs $7,700 a month with 50 separate VPCs!
 
 Use [SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html), or a similar product.
 
+### How do I decide between a proxy vs. firewall for egress filtering?
+
+[Chaser Systems has a good pros- and cons- bakeoff](https://chasersystems.com/blog/proxy-on-gcp-harder-better-faster-stronger/#maybe-a-proxy-less-solution) between the 2 types, but it only compares DiscrimiNAT and Squid.
+
+Overall there is a dearth of information around baking off specific solutions. I would love to see someone write a post around this.
+
+The options I know about are as follows.
+
+Proxies:
+- [Envoy](https://github.com/envoyproxy/envoy) (Used by e.g. [Lyft](https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9), [Palantir](https://blog.palantir.com/using-envoy-for-egress-traffic-8524d10b5ee2))
+- [Smokescreen](https://github.com/stripe/smokescreen) (Used by e.g. Stripe and presumably [HashiCorp](https://github.com/stripe/smokescreen/pull/140))
+- [Squid](https://en.wikipedia.org/wiki/Squid_(software)) (The older "OG" solution first made in 1996. Used by many e.g. banks.)
+
+Firewalls:
+- [Chaser Systems DiscrimiNAT](https://chasersystems.com/)
+- Aviatrix
+- Palo Alto
+- Probably others (Cisco maybe?)
+
+I do not know if Aviatrix/Palo Alto and others a [bypass-able in the same way Network Firewall is](https://chasersystems.com/discriminat/comparison/aws-network-firewall/), but it is something to watch out for.
+
+None of these are easy to roll out or maintain, so the investment is larger than banning internet gateways.
+
 ### What happens if an EC2 instance in a private subnet gets a public IP?
 
-You can send packets to it from the Internet. However, the EC2 can't really respond.
+You can send packets to it from the Internet. However, the EC2 can't respond over TCP.
 
 This is because incoming traffic first hits the IGW, then the EC2. Nothing else is checked assuming the NACL and security group allow it.
 
-As for why it cannot respond to traffic. For a private subnet, the route table -- which is only consulted for outgoing traffic -- will have a path to a NAT Gateway, not the IGW. So response packets will have the source IP of the NAT Gateway rather than the EC2 instance, messing up e.g. the TCP handshake.[^9133]
+As for why it cannot respond to traffic, that is more interesting!
 
-[^9133]: A 3rd shout out to Aiden Steele who [wrote about this in another context](https://twitter.com/__steele/status/1572752577648726016), and has [visuals / code here](https://github.com/aidansteele/matconnect#matconnect).
+For a private subnet, the route table -- which is only consulted for outgoing traffic -- will have a path to a NAT Gateway, not the IGW. So response packets will reach the NAT Gateway, [which does connection/flow tracking](https://www.youtube.com/watch?app=desktop&v=UP7wDBjZ37o&t=35m20s),[^91426] and get dropped because there is no existing connection.[^9133]
 
-With VPC sharing, you can control the NACL but not the Security Group. A NACL won't be able to help however, because an Ingress deny rule blocking the Internet from hitting the EC2 will also block responses from the Internet to Egress Traffic.
+[^91426]: According to that re:Invent session from [Colm MacCárthaigh](https://twitter.com/colmmacc?lang=en), and me testing [ACK scanning](https://nmap.org/book/scan-methods-ack-scan.html#:~:text=ACK%20scan%20is%20enabled%20by,both%20return%20a%20RST%20packet.) does not work through a NAT Gateway.
+
+[^9133]: A **3rd** shout out to Aiden Steele who [wrote about this in another context](https://twitter.com/__steele/status/1572752577648726016), and has [visuals / code here](https://github.com/aidansteele/matconnect#matconnect).
+
+If the EC2 has e.g. UDP ports open, then an attacker can recieve responses and you have a security problem. It is worth mentioning a NACL will not help, as an Ingress deny rule blocking the Internet from hitting the EC2 will also block responses from the Internet to Egress Traffic.
 
 ## Open Questions
 

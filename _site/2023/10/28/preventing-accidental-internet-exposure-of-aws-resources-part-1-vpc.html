@@ -12,8 +12,8 @@
 <meta property="og:title" content="[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)" />
 <meta name="author" content="Majin Buu" />
 <meta property="og:locale" content="en" />
-<meta name="description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that an attacker can find via traditional public IP network scanning or searching Shodan. This three-part series walks through different ways to mitigate that risk." />
-<meta property="og:description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that an attacker can find via traditional public IP network scanning or searching Shodan. This three-part series walks through different ways to mitigate that risk." />
+<meta name="description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. This three-part series walks through different ways to mitigate that risk." />
+<meta property="og:description" content="Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. This three-part series walks through different ways to mitigate that risk." />
 <link rel="canonical" href="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html" />
 <meta property="og:url" content="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html" />
 <meta property="og:site_name" content="Majin Buu on Security" />
@@ -22,7 +22,7 @@
 <meta name="twitter:card" content="summary" />
 <meta property="twitter:title" content="[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"Many AWS customers have suffered breaches due to exposing resources to the Internet by accident, resources that an attacker can find via traditional public IP network scanning or searching Shodan. This three-part series walks through different ways to mitigate that risk.","headline":"[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html"}</script>
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"Many AWS customers have suffered breaches due to exposing resources to the Internet by accident. This three-part series walks through different ways to mitigate that risk.","headline":"[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-1-vpc.html"}</script>
 <!-- End Jekyll SEO tag -->
 
 
@@ -93,7 +93,7 @@
   <li><a href="#supporting-egress-in-private-vpc-accounts">Supporting Egress in Private VPC Accounts</a>
     <ul>
       <li><a href="#option-1-centralized-egress-via-transit-gateway-tgw">Option 1: Centralized Egress via Transit Gateway (TGW)</a></li>
-      <li><a href="#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-egress-filtering">Option 2: Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering</a></li>
+      <li><a href="#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-proxy">Option 2: Centralized Egress via PrivateLink (or VPC Peering) with Proxy</a></li>
       <li><a href="#option-3-centralized-egress-via-gateway-load-balancer-gwlb-with-firewall">Option 3: Centralized Egress via Gateway Load Balancer (GWLB) with Firewall</a></li>
       <li><a href="#option-4-vpc-sharing">Option 4: VPC Sharing</a></li>
       <li><a href="#option-5-ipv6-for-egress">Option 5: IPv6 for Egress</a></li>
@@ -107,6 +107,7 @@
       <li><a href="#why-is-vpc-privatelink-not-a-straightforward-option">Why is VPC PrivateLink not a straightforward option?</a></li>
       <li><a href="#how-much-cheaper-is-vpc-sharing-than-tgw">How much cheaper is VPC Sharing than TGW?</a></li>
       <li><a href="#how-do-i-access-my-machines-if-they-are-all-in-private-subnets">How do I access my machines if they are all in private subnets?</a></li>
+      <li><a href="#how-do-i-decide-between-a-proxy-vs-firewall-for-egress-filtering">How do I decide between a proxy vs. firewall for egress filtering?</a></li>
       <li><a href="#what-happens-if-an-ec2-instance-in-a-private-subnet-gets-a-public-ip">What happens if an EC2 instance in a private subnet gets a public IP?</a></li>
     </ul>
   </li>
@@ -132,13 +133,13 @@
   </header>
 
   <div class="post-content e-content" itemprop="articleBody">
-    <p><a href="https://github.com/ramimac/aws-customer-security-incidents#background">Many AWS customers have suffered breaches</a> due to exposing resources to the Internet by accident, resources that an attacker can find via traditional public IP network scanning or <a href="https://maia.crimew.gay/posts/how-to-hack-an-airline/">searching Shodan</a>. This three-part series walks through different ways to mitigate that risk.</p>
+    <p><a href="https://github.com/ramimac/aws-customer-security-incidents#background">Many AWS customers have suffered breaches</a> due to exposing resources to the Internet by accident. This three-part series walks through different ways to mitigate that risk.</p>
 
 <h2 id="about-the-problem">About The Problem</h2>
 
 <p>There are many ways to make resources public in AWS. <a href="https://github.com/SummitRoute/aws_exposable_resources#aws-exposable-resources">github.com/SummitRoute/aws_exposable_resources</a> was created specifically to maintain a list of all AWS resources that can be publicly exposed and how.</p>
 
-<p>This post discusses preventing public network access for resources exclusively in a VPC (EC2 instances, ELBs, RDS databases, etc.).</p>
+<p>This post discusses preventing public network access for resources exclusively in a VPC (EC2 instances, ELBs, RDS databases, etc.). These are resources that an attackers find via traditional public IP network scanning or <a href="https://maia.crimew.gay/posts/how-to-hack-an-airline/">searching Shodan</a>.</p>
 
 <p>Ideally, you can look at your AWS organization structure from a 1000-foot view and know which subtree of accounts / OUs can have publicly accessible VPCs.</p>
 
@@ -172,15 +173,16 @@
 
 <ol>
   <li><a href="#option-1-centralized-egress-via-transit-gateway-tgw">Centralized Egress via Transit Gateway (TGW)</a></li>
-  <li><a href="#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-egress-filtering">Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering</a></li>
-  <li><a href="#option-3-centralized-egress-via-gateway-load-balancer-gwlb-with-firewall">Centralized Egress via Gateway Load Balancer (GWLB)</a></li>
+  <li><a href="#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-proxy">Centralized Egress via PrivateLink (or VPC Peering) with Proxy</a></li>
+  <li><a href="#option-3-centralized-egress-via-gateway-load-balancer-gwlb-with-firewall">Centralized Egress via Gateway Load Balancer (GWLB) with Firewall</a></li>
   <li><a href="#option-4-vpc-sharing">VPC Sharing</a></li>
   <li><a href="#option-5-ipv6-for-egress">IPv6 for Egress</a></li>
 </ol>
 
 <p>Hopefully, one of these options will align with the goals of your networking team.</p>
 
-<p>My recommendation is to go with TGW for most accounts, and VPC Sharing for sandbox accounts. Once you are ready to implement Egress Filtering, use PrivateLink + Egress Filtering.</p>
+<p>My recommendation:
+<img src="https://i.imgur.com/V7IYxO9.png" alt="alt text" /></p>
 
 <h3 id="option-1-centralized-egress-via-transit-gateway-tgw">Option 1: Centralized Egress via Transit Gateway (TGW)</h3>
 
@@ -215,9 +217,11 @@
 <p>The following is a graph, <a href="https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5">generated with Python</a>. As you can see at e.g. 20 VPCs you’d need to be sending over 55 TB for centralized egress to be more expensive, it only gets more worthwhile the more VPCs you add.
 <img src="https://i.imgur.com/fxKEToY.png" alt="alt text" /></p>
 
+<p>Chime is one one of the edge cases AWS mentioned, they mentioned <em>petabytes</em> of data and <a href="https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb">saving 7 figures getting rid of NAT Gateways</a>. For them, TGW would break the bank. 1 PB of data transferred would require 324 VPCs to break even, and 2 PB would require 646 VPCs.</p>
+
 <p>See <a href="#can-you-walk-through-the-cost-details-around-option-1">the FAQ</a> for a verbose example.</p>
 
-<h3 id="option-2-centralized-egress-via-privatelink-or-vpc-peering-with-egress-filtering">Option 2: Centralized Egress via PrivateLink (or VPC Peering) with Egress Filtering</h3>
+<h3 id="option-2-centralized-egress-via-privatelink-or-vpc-peering-with-proxy">Option 2: Centralized Egress via PrivateLink (or VPC Peering) with Proxy</h3>
 
 <p>PrivateLink and VPC Peering are mostly non-options. See the <a href="#why-is-vpc-peering-not-a-straightforward-option">FAQ</a> for more information.</p>
 
@@ -340,7 +344,7 @@
     <tr>
       <th>Criteria</th>
       <th>TGW</th>
-      <th>PrivateLink + Egress Filtering</th>
+      <th>PrivateLink + Proxy</th>
       <th>GWLB + Firewall</th>
       <th>VPC Sharing</th>
       <th>IPv6-Only</th>
@@ -538,15 +542,44 @@
 
 <p>Use <a href="https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html">SSM</a>, or a similar product.</p>
 
+<h3 id="how-do-i-decide-between-a-proxy-vs-firewall-for-egress-filtering">How do I decide between a proxy vs. firewall for egress filtering?</h3>
+
+<p><a href="https://chasersystems.com/blog/proxy-on-gcp-harder-better-faster-stronger/#maybe-a-proxy-less-solution">Chaser Systems has a good pros- and cons- bakeoff</a> between the 2 types, but it only compares DiscrimiNAT and Squid.</p>
+
+<p>Overall there is a dearth of information around baking off specific solutions. I would love to see someone write a post around this.</p>
+
+<p>The options I know about are as follows.</p>
+
+<p>Proxies:</p>
+<ul>
+  <li><a href="https://github.com/envoyproxy/envoy">Envoy</a> (Used by e.g. <a href="https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9">Lyft</a>, <a href="https://blog.palantir.com/using-envoy-for-egress-traffic-8524d10b5ee2">Palantir</a>)</li>
+  <li><a href="https://github.com/stripe/smokescreen">Smokescreen</a> (Used by e.g. Stripe and presumably <a href="https://github.com/stripe/smokescreen/pull/140">HashiCorp</a>)</li>
+  <li><a href="https://en.wikipedia.org/wiki/Squid_(software)">Squid</a> (The older “OG” solution first made in 1996. Used by many e.g. banks.)</li>
+</ul>
+
+<p>Firewalls:</p>
+<ul>
+  <li><a href="https://chasersystems.com/">Chaser Systems DiscrimiNAT</a></li>
+  <li>Aviatrix</li>
+  <li>Palo Alto</li>
+  <li>Probably others (Cisco maybe?)</li>
+</ul>
+
+<p>I do not know if Aviatrix/Palo Alto and others a <a href="https://chasersystems.com/discriminat/comparison/aws-network-firewall/">bypass-able in the same way Network Firewall is</a>, but it is something to watch out for.</p>
+
+<p>None of these are easy to roll out or maintain, so the investment is larger than banning internet gateways.</p>
+
 <h3 id="what-happens-if-an-ec2-instance-in-a-private-subnet-gets-a-public-ip">What happens if an EC2 instance in a private subnet gets a public IP?</h3>
 
-<p>You can send packets to it from the Internet. However, the EC2 can’t really respond.</p>
+<p>You can send packets to it from the Internet. However, the EC2 can’t respond over TCP.</p>
 
 <p>This is because incoming traffic first hits the IGW, then the EC2. Nothing else is checked assuming the NACL and security group allow it.</p>
 
-<p>As for why it cannot respond to traffic. For a private subnet, the route table – which is only consulted for outgoing traffic – will have a path to a NAT Gateway, not the IGW. So response packets will have the source IP of the NAT Gateway rather than the EC2 instance, messing up e.g. the TCP handshake.<sup id="fnref:9133" role="doc-noteref"><a href="#fn:9133" class="footnote" rel="footnote">12</a></sup></p>
+<p>As for why it cannot respond to traffic, that is more interesting!</p>
 
-<p>With VPC sharing, you can control the NACL but not the Security Group. A NACL won’t be able to help however, because an Ingress deny rule blocking the Internet from hitting the EC2 will also block responses from the Internet to Egress Traffic.</p>
+<p>For a private subnet, the route table – which is only consulted for outgoing traffic – will have a path to a NAT Gateway, not the IGW. So response packets will reach the NAT Gateway, <a href="https://www.youtube.com/watch?app=desktop&amp;v=UP7wDBjZ37o&amp;t=35m20s">which does connection/flow tracking</a>,<sup id="fnref:91426" role="doc-noteref"><a href="#fn:91426" class="footnote" rel="footnote">12</a></sup> and get dropped because there is no existing connection.<sup id="fnref:9133" role="doc-noteref"><a href="#fn:9133" class="footnote" rel="footnote">13</a></sup></p>
+
+<p>If the EC2 has e.g. UDP ports open, then an attacker can recieve responses and you have a security problem. It is worth mentioning a NACL will not help, as an Ingress deny rule blocking the Internet from hitting the EC2 will also block responses from the Internet to Egress Traffic.</p>
 
 <h2 id="open-questions">Open Questions</h2>
 
@@ -574,7 +607,7 @@
       <p>Alongside deleting all the IGWs/VPCs that AWS makes by default in new accounts. <a href="#fnref:2111" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:1350" role="doc-endnote">
-      <p>There are some companies with agents meant to be deployed on EC2s that do not offer a VPC endpoint, <a href="https://sso.tax/">perhaps</a> a <a href="https://fido.fail/">wall</a> of <a href="https://github.com/SummitRoute/imdsv2_wall_of_shame#imdsv2-wall-of-shame">shame</a> can be made. <a href="#fnref:1350" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>There are some companies with agents meant to be deployed on EC2s that do not offer a VPC endpoint, or charge an exorbitant fee, <a href="https://sso.tax/">perhaps</a> a <a href="https://fido.fail/">wall</a> of <a href="https://github.com/SummitRoute/imdsv2_wall_of_shame#imdsv2-wall-of-shame">shame</a> can be made. Chime <a href="https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb">mentioned</a>: <code class="language-plaintext highlighter-rouge">"Although our vendor offers PrivateLink, they have also chosen to monetize it, charging so much for access to the feature that it was not a viable option."</code> <a href="#fnref:1350" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:98" role="doc-endnote">
       <p><a href="https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html#flow-logs-limitations">Flow log limitations</a> does not state “Internet-bound traffic sent to a peering connection” or “Internet-bound traffic sent to a VPC interface endpoint.” under <code class="language-plaintext highlighter-rouge">The following types of traffic are not logged:</code>. After testing I believe these are likely omitted due to not being a proper use-case. <a href="#fnref:98" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
@@ -603,8 +636,11 @@
     <li id="fn:996221" role="doc-endnote">
       <p>This is Stage 1 of Scott’s <a href="https://summitroute.com/downloads/aws_security_maturity_roadmap-Summit_Route.pdf">AWS Security Maturity Roadmap</a>, for example. <a href="#fnref:996221" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
+    <li id="fn:91426" role="doc-endnote">
+      <p>According to that re:Invent session from <a href="https://twitter.com/colmmacc?lang=en">Colm MacCárthaigh</a>, and me testing <a href="https://nmap.org/book/scan-methods-ack-scan.html#:~:text=ACK%20scan%20is%20enabled%20by,both%20return%20a%20RST%20packet.">ACK scanning</a> does not work through a NAT Gateway. <a href="#fnref:91426" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
     <li id="fn:9133" role="doc-endnote">
-      <p>A 3rd shout out to Aiden Steele who <a href="https://twitter.com/__steele/status/1572752577648726016">wrote about this in another context</a>, and has <a href="https://github.com/aidansteele/matconnect#matconnect">visuals / code here</a>. <a href="#fnref:9133" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>A <strong>3rd</strong> shout out to Aiden Steele who <a href="https://twitter.com/__steele/status/1572752577648726016">wrote about this in another context</a>, and has <a href="https://github.com/aidansteele/matconnect#matconnect">visuals / code here</a>. <a href="#fnref:9133" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
