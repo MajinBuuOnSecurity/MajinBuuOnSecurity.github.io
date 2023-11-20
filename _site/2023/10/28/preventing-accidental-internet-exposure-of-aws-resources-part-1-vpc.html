@@ -217,7 +217,7 @@
 <p>The following is a graph, <a href="https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5">generated with Python</a>. As you can see at e.g. 20 VPCs you’d need to be sending over 55 TB for centralized egress to be more expensive, it only gets more worthwhile the more VPCs you add.
 <img src="https://i.imgur.com/fxKEToY.png" alt="alt text" /></p>
 
-<p>Chime is one of the edge cases AWS mentioned; they mentioned <em>petabytes</em> of data and <a href="https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb">saving seven figures getting rid of NAT Gateways</a>. For them, TGW would break the bank. 1 PB of data transferred would require 324 VPCs to break even, and 2 PB would require 646 VPCs.</p>
+<p>Chime is one of the edge cases AWS mentioned; Chime wrote about <em>petabytes</em> of data and <a href="https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb">saved seven figures getting rid of NAT Gateways</a>. For them, TGW would break the bank. 1 PB of data transferred would require 324 VPCs to break even, and 2 PB would require 646 VPCs.</p>
 
 <p>See <a href="#can-you-walk-through-the-cost-details-around-option-1">the FAQ</a> for a verbose example.</p>
 
@@ -626,7 +626,7 @@
       <p>Shout out to <a href="https://awsteele.com/blog/2022/01/02/shared-vpcs-are-underrated.html">Aiden Steele</a> and <a href="https://sjramblings.io/unlock-the-hidden-power-of-vpc-sharing-in-aws">Stephen Jones</a> for writing their thoughts on VPC Sharing. <a href="#fnref:996" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:12202" role="doc-endnote">
-      <p>Only ~$73.04 a month, plus 20 bucks per TB in data processing costs. <a href="#fnref:12202" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>20 bucks per TB in data processing costs + ~$73.04 a month. <a href="#fnref:12202" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:220220" role="doc-endnote">
       <p>See <a href="#what-happens-if-an-ec2-instance-in-a-private-subnet-gets-a-public-ip">the FAQ</a> for what it means to have an EC2 in a private subnet have a public IP. <a href="#fnref:220220" class="reversefootnote" role="doc-backlink">&#8617;</a></p>

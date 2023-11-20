@@ -87,7 +87,7 @@ Sending huge amounts of data through a NAT Gateway should be avoided anyway.
 The following is a graph, [generated with Python](https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5). As you can see at e.g. 20 VPCs you'd need to be sending over 55 TB for centralized egress to be more expensive, it only gets more worthwhile the more VPCs you add.
 ![alt text](https://i.imgur.com/fxKEToY.png)
 
-Chime is one of the edge cases AWS mentioned; they mentioned _petabytes_ of data and [saving seven figures getting rid of NAT Gateways](https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb). For them, TGW would break the bank. 1 PB of data transferred would require 324 VPCs to break even, and 2 PB would require 646 VPCs.
+Chime is one of the edge cases AWS mentioned; Chime wrote about _petabytes_ of data and [saved seven figures getting rid of NAT Gateways](https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb). For them, TGW would break the bank. 1 PB of data transferred would require 324 VPCs to break even, and 2 PB would require 646 VPCs.
 
 See [the FAQ](#can-you-walk-through-the-cost-details-around-option-1) for a verbose example.
 
@@ -162,7 +162,7 @@ Unless you also used a TGW:[^12202]
 
 ![alt text](https://i.imgur.com/aYyKrH1.png)
 
-[^12202]: Only \~$73.04 a month, plus 20 bucks per TB in data processing costs.
+[^12202]: 20 bucks per TB in data processing costs + \~$73.04 a month.
 
 Assuming you don't want to pay for TGW, you can ban actions that would explicitly give an instance in a private subnet a public IP.[^220220]
 
