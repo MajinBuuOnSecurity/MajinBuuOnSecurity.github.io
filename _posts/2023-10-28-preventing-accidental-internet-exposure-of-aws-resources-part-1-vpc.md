@@ -225,7 +225,7 @@ AWS Billing Cost           | <span style="color:red">High</span>    | Low       
 Complexity*                | Medium                                 | <span style="color:red">High</span> | Medium                                | Low                                   | Medium
 Scalability*               | High                                   | High                                | High                                  | Low                                   | Medium
 Flexibility*               | High                                   | High                                | High                                  | Medium                                | <span style="color:red">Lowest</span>
-Filtering Granularity      | None                                   | FQDN or URL Path (If desired)       | FQDN                                 | None                                 | None
+Filtering Granularity      | None                                   | FQDN or URL Path                    | FQDN                                 | None                                 | None
 Will Prevent Org Migration | False                                  | False                               | False                                 | <span style="color:red">True</span>   | False
 
 \* = YMMV
