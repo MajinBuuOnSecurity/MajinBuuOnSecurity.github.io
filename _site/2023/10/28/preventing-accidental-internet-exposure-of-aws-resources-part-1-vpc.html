@@ -217,7 +217,7 @@
 <p>The following is a graph, <a href="https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5">generated with Python</a>. As you can see at e.g. 20 VPCs you’d need to be sending over 55 TB for centralized egress to be more expensive, it only gets more worthwhile the more VPCs you add.
 <img src="https://i.imgur.com/fxKEToY.png" alt="alt text" /></p>
 
-<p>Chime is one one of the edge cases AWS mentioned, they mentioned <em>petabytes</em> of data and <a href="https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb">saving 7 figures getting rid of NAT Gateways</a>. For them, TGW would break the bank. 1 PB of data transferred would require 324 VPCs to break even, and 2 PB would require 646 VPCs.</p>
+<p>Chime is one of the edge cases AWS mentioned; they mentioned <em>petabytes</em> of data and <a href="https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb">saving seven figures getting rid of NAT Gateways</a>. For them, TGW would break the bank. 1 PB of data transferred would require 324 VPCs to break even, and 2 PB would require 646 VPCs.</p>
 
 <p>See <a href="#can-you-walk-through-the-cost-details-around-option-1">the FAQ</a> for a verbose example.</p>
 
@@ -225,7 +225,7 @@
 
 <p>PrivateLink and VPC Peering are mostly non-options. See the <a href="#why-is-vpc-peering-not-a-straightforward-option">FAQ</a> for more information.</p>
 
-<p>However, if you are willing to do a lot of heavy lifting that is orthogonal to AWS primitives, you <em>can</em> use these in combination with <a href="https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9">Internet Egress Filtering</a>, to accomplish centralized egress. This is because the destination IP of outbound traffic won’t be the Internet, but a private IP.</p>
+<p>However, if you are willing to do a lot of heavy lifting that is orthogonal to AWS primitives, you <em>can</em> use these in combination with <a href="https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9">a proxy</a>, to accomplish centralized egress. This is because the destination IP of outbound traffic won’t be the Internet, but a private IP.</p>
 
 <p>This is assuming you are deploying e.g. iptables, to re-route Internet-destined traffic on every host.</p>
 
@@ -286,7 +286,7 @@
 
 <p>This can be done by banning <a href="https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29"><code class="language-plaintext highlighter-rouge">ec2:RunInstances</code> with the <code class="language-plaintext highlighter-rouge">"ec2:AssociatePublicIpAddress</code> condition key set to <code class="language-plaintext highlighter-rouge">"true"</code></a>, and EIP related IAM actions such as <code class="language-plaintext highlighter-rouge">ec2:AssociateAddress</code>.</p>
 
-<p>Then the only problem are AWS services that treat the presence of an IGW as a ‘welcome mat’, to make something face the Internet; <a href="https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html#global-accelerator">Global Accelerator</a> is an example. These are not a big deal because so many other services don’t require an IGW to make Internet facing resources, so you have to deal with the ‘hundreds of AWS services’ problem holistically regardless.</p>
+<p>Then, the only problem is AWS services that treat the presence of an IGW as a ‘welcome mat’ to make something face the Internet; <a href="https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html#global-accelerator">Global Accelerator</a> is an example. These are not a big deal because so many other services don’t require an IGW to make Internet-facing resources, so you have to deal with the ‘hundreds of AWS services’ problem holistically.</p>
 
 <p>I discuss addressing the risk of ‘hundreds of AWS services’ in the <a href="https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html">next part</a> of the series.</p>
 
@@ -546,7 +546,7 @@
 
 <p><a href="https://chasersystems.com/blog/proxy-on-gcp-harder-better-faster-stronger/#maybe-a-proxy-less-solution">Chaser Systems has a good pros- and cons- bakeoff</a> between the 2 types, but it only compares DiscrimiNAT and Squid.</p>
 
-<p>Overall there is a dearth of information around baking off specific solutions. I would love to see someone write a post around this.</p>
+<p>Overall, there is a dearth of information around baking off specific solutions. I would love to see someone write a post around this.</p>
 
 <p>The options I know about are as follows.</p>
 
@@ -565,9 +565,7 @@
   <li>Probably others (Cisco maybe?)</li>
 </ul>
 
-<p>I do not know if Aviatrix/Palo Alto and others a <a href="https://chasersystems.com/discriminat/comparison/aws-network-firewall/">bypass-able in the same way Network Firewall is</a>, but it is something to watch out for.</p>
-
-<p>None of these are easy to roll out or maintain, so the investment is larger than banning internet gateways.</p>
+<p>I do not know if Aviatrix/Palo Alto etc. are <a href="https://chasersystems.com/discriminat/comparison/aws-network-firewall/">bypass-able in the same way Network Firewall is</a>, but it is something to watch out for.</p>
 
 <h3 id="what-happens-if-an-ec2-instance-in-a-private-subnet-gets-a-public-ip">What happens if an EC2 instance in a private subnet gets a public IP?</h3>
 
@@ -619,7 +617,7 @@
       <p>It has <a href="https://aws.amazon.com/network-firewall/faqs/">AWS Network Firewall</a>, which can be fooled via SNI spoofing. So it is, at best, a stepping stone to keep an inventory of your Egress traffic if you can’t get a proxy up and running short-term and are not using TLS 1.3 with encrypted client hello (ECH) or encrypted SNI (ESNI). I cringe at how <a href="https://aws.amazon.com/network-firewall/faqs/">the FAQ</a> says these are not supported, rather than a bypass of the product. Sadly this euphemism <a href="https://i.imgur.com/dPyFaNK.png">isn’t unique to AWS</a>. <a href="#fnref:99" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:99328" role="doc-endnote">
-      <p>The usual suspects <a href="https://awsteele.com/blog/2022/01/20/aws-gwlb-deep-packet-manipulation.html">Aiden Steele</a>, <a href="https://web.archive.org/web/20220129101637/https://www.sentiatechblog.com/geneveproxy-an-aws-gateway-load-balancer-reference-application">Luc van Donkersgoed</a>, and <a href="https://www.lastweekinaws.com/blog/what-i-dont-get-about-the-aws-gateway-load-balancer/">Corey Quinn</a> have written about this feature. <a href="#fnref:99328" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>The usual suspects <a href="https://awsteele.com/blog/2022/01/20/aws-gwlb-deep-packet-manipulation.html">Aiden Steele</a>, <a href="https://web.archive.org/web/20220129101637/https://www.sentiatechblog.com/geneveproxy-an-aws-gateway-load-balancer-reference-application">Luc van Donkersgoed</a>, and <a href="https://www.lastweekinaws.com/blog/what-i-dont-get-about-the-aws-gateway-load-balancer/">Corey Quinn</a> have written about GWLB. <a href="#fnref:99328" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:99351" role="doc-endnote">
       <p>This is just my 1st impressions. <a href="https://github.com/new23d">Dhruv</a> didn’t pay me to write this. <a href="#fnref:99351" class="reversefootnote" role="doc-backlink">&#8617;</a></p>

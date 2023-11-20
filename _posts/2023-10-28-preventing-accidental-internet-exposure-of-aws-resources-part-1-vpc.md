@@ -87,7 +87,7 @@ Sending huge amounts of data through a NAT Gateway should be avoided anyway.
 The following is a graph, [generated with Python](https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5). As you can see at e.g. 20 VPCs you'd need to be sending over 55 TB for centralized egress to be more expensive, it only gets more worthwhile the more VPCs you add.
 ![alt text](https://i.imgur.com/fxKEToY.png)
 
-Chime is one one of the edge cases AWS mentioned, they mentioned _petabytes_ of data and [saving 7 figures getting rid of NAT Gateways](https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb). For them, TGW would break the bank. 1 PB of data transferred would require 324 VPCs to break even, and 2 PB would require 646 VPCs.
+Chime is one of the edge cases AWS mentioned; they mentioned _petabytes_ of data and [saving seven figures getting rid of NAT Gateways](https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb). For them, TGW would break the bank. 1 PB of data transferred would require 324 VPCs to break even, and 2 PB would require 646 VPCs.
 
 See [the FAQ](#can-you-walk-through-the-cost-details-around-option-1) for a verbose example.
 
@@ -95,7 +95,7 @@ See [the FAQ](#can-you-walk-through-the-cost-details-around-option-1) for a verb
 
 PrivateLink and VPC Peering are mostly non-options. See the [FAQ](#why-is-vpc-peering-not-a-straightforward-option) for more information.
 
-However, if you are willing to do a lot of heavy lifting that is orthogonal to AWS primitives, you _can_ use these in combination with [Internet Egress Filtering](https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9), to accomplish centralized egress. This is because the destination IP of outbound traffic won't be the Internet, but a private IP.
+However, if you are willing to do a lot of heavy lifting that is orthogonal to AWS primitives, you _can_ use these in combination with [a proxy](https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9), to accomplish centralized egress. This is because the destination IP of outbound traffic won't be the Internet, but a private IP.
 
 This is assuming you are deploying e.g. iptables, to re-route Internet-destined traffic on every host.
 
@@ -124,7 +124,7 @@ TODO: Re-write this section.
 
 [GWLB](https://aws.amazon.com/blogs/aws/introducing-aws-gateway-load-balancer-easy-deployment-scalability-and-high-availability-for-partner-appliances/) is a service intended to enable the deployment of virtual appliances in the form of firewalls, intrusion detection/prevention systems and deep packet inspection systems. The appliances get sent the original traffic [encapsulated via the Geneve protocol](https://aws.amazon.com/blogs/networking-and-content-delivery/integrate-your-custom-logic-or-appliance-with-aws-gateway-load-balancer/).[^99328]
 
-[^99328]: The usual suspects [Aiden Steele](https://awsteele.com/blog/2022/01/20/aws-gwlb-deep-packet-manipulation.html), [Luc van Donkersgoed](https://web.archive.org/web/20220129101637/https://www.sentiatechblog.com/geneveproxy-an-aws-gateway-load-balancer-reference-application), and [Corey Quinn](https://www.lastweekinaws.com/blog/what-i-dont-get-about-the-aws-gateway-load-balancer/) have written about this feature.
+[^99328]: The usual suspects [Aiden Steele](https://awsteele.com/blog/2022/01/20/aws-gwlb-deep-packet-manipulation.html), [Luc van Donkersgoed](https://web.archive.org/web/20220129101637/https://www.sentiatechblog.com/geneveproxy-an-aws-gateway-load-balancer-reference-application), and [Corey Quinn](https://www.lastweekinaws.com/blog/what-i-dont-get-about-the-aws-gateway-load-balancer/) have written about GWLB.
 
 The reason why PrivateLink was mostly a non-option was that interface endpoint ENIs have "[Source/destination checking](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics)" enabled, and [you cannot disable it since it is managed by AWS](#why-is-vpc-privatelink-not-a-straightforward-option).
 
@@ -170,7 +170,7 @@ Assuming you don't want to pay for TGW, you can ban actions that would explicitl
 
 This can be done by banning [`ec2:RunInstances` with the `"ec2:AssociatePublicIpAddress` condition key set to `"true"`](https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29), and EIP related IAM actions such as `ec2:AssociateAddress`.
 
-Then the only problem are AWS services that treat the presence of an IGW as a 'welcome mat', to make something face the Internet; [Global Accelerator](https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html#global-accelerator) is an example. These are not a big deal because so many other services don't require an IGW to make Internet facing resources, so you have to deal with the 'hundreds of AWS services' problem holistically regardless.
+Then, the only problem is AWS services that treat the presence of an IGW as a 'welcome mat' to make something face the Internet; [Global Accelerator](https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html#global-accelerator) is an example. These are not a big deal because so many other services don't require an IGW to make Internet-facing resources, so you have to deal with the 'hundreds of AWS services' problem holistically.
 
 I discuss addressing the risk of 'hundreds of AWS services' in the [next part](https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html) of the series.
 
@@ -329,7 +329,7 @@ Use [SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-m
 
 [Chaser Systems has a good pros- and cons- bakeoff](https://chasersystems.com/blog/proxy-on-gcp-harder-better-faster-stronger/#maybe-a-proxy-less-solution) between the 2 types, but it only compares DiscrimiNAT and Squid.
 
-Overall there is a dearth of information around baking off specific solutions. I would love to see someone write a post around this.
+Overall, there is a dearth of information around baking off specific solutions. I would love to see someone write a post around this.
 
 The options I know about are as follows.
 
@@ -344,9 +344,7 @@ Firewalls:
 - Palo Alto
 - Probably others (Cisco maybe?)
 
-I do not know if Aviatrix/Palo Alto and others a [bypass-able in the same way Network Firewall is](https://chasersystems.com/discriminat/comparison/aws-network-firewall/), but it is something to watch out for.
-
-None of these are easy to roll out or maintain, so the investment is larger than banning internet gateways.
+I do not know if Aviatrix/Palo Alto etc. are [bypass-able in the same way Network Firewall is](https://chasersystems.com/discriminat/comparison/aws-network-firewall/), but it is something to watch out for.
 
 ### What happens if an EC2 instance in a private subnet gets a public IP?
 
