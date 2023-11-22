@@ -139,7 +139,11 @@
 
 <p>There are many ways to make resources public in AWS. <a href="https://github.com/SummitRoute/aws_exposable_resources#aws-exposable-resources">github.com/SummitRoute/aws_exposable_resources</a> was created specifically to maintain a list of all AWS resources that can be publicly exposed and how.</p>
 
-<p>This post discusses preventing public network access for resources exclusively in a VPC (EC2 instances, ELBs, RDS databases, etc.). These are resources that an attackers find via traditional public IP network scanning or <a href="https://maia.crimew.gay/posts/how-to-hack-an-airline/">searching Shodan</a>.</p>
+<p>This post discusses preventing public network access for resources exclusively in a VPC (EC2 instances, ELBs, RDS databases, etc.). These are resources that attackers find via traditional public IP network scanning or <a href="https://maia.crimew.gay/posts/how-to-hack-an-airline/">searching Shodan</a>.</p>
+
+<p>Why write about this?</p>
+
+<p>All other ways of attacking a company’s AWS resources are ‘cloud native’ in the strictest sense since the resources need to be accessed through the AWS API. As a defender, the more you can limit the attack surface to only what is accessible via AWS APIs, the better.</p>
 
 <p>Ideally, you can look at your AWS organization structure from a 1000-foot view and know which subtree of accounts / OUs can have publicly accessible VPCs.</p>
 
@@ -150,7 +154,7 @@
 
 <p>You can implement this by banning <code class="language-plaintext highlighter-rouge">"ec2:CreateInternetGateway"</code> in subaccounts via SCP.<sup id="fnref:2111" role="doc-noteref"><a href="#fn:2111" class="footnote" rel="footnote">1</a></sup></p>
 
-<p>The reason this works is because although there are many ways an accidental Internet-exposure might happen – for VPCs at least – every way requires an Internet Gateway (IGW). E.g.
+<p>This works because although there are many ways an accidental Internet-exposure might happen – for VPCs at least – every way requires an Internet Gateway (IGW). E.g.
 <img src="https://i.imgur.com/1e4M8z4.gif" alt="alt text" /></p>
 
 <p>Or:     <br />
@@ -170,7 +174,6 @@
 <h2 id="supporting-egress-in-private-vpc-accounts">Supporting Egress in Private VPC Accounts</h2>
 
 <p>To support the Egress use-case, you must ensure your network architecture tightly couples NAT with an Internet Gateway by, e.g., giving subaccounts a paved path to a NAT Gateway in another account. You can do this via:</p>
-
 <ol>
   <li><a href="#option-1-centralized-egress-via-transit-gateway-tgw">Centralized Egress via Transit Gateway (TGW)</a></li>
   <li><a href="#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-proxy">Centralized Egress via PrivateLink (or VPC Peering) with Proxy</a></li>
@@ -186,10 +189,9 @@
 
 <h3 id="option-1-centralized-egress-via-transit-gateway-tgw">Option 1: Centralized Egress via Transit Gateway (TGW)</h3>
 
-<p>This is the most common implementation, and probably the best. If money is no issue for you: go this route.</p>
+<p>This is the most common implementation and probably the best. If money is no issue for you, go this route.</p>
 
-<p>It looks like this:
-<img src="https://i.imgur.com/alRH2hN.png" alt="alt text" /></p>
+<p><img src="https://i.imgur.com/alRH2hN.png" alt="alt text" /></p>
 
 <p>AWS first wrote about this <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/creating-a-single-internet-exit-point-from-multiple-vpcs-using-aws-transit-gateway/">in 2019</a> and lists it under their prescriptive guidance as <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/transitioning-to-multiple-aws-accounts/centralized-egress.html">Centralized Egress</a>.</p>
 
@@ -197,7 +199,7 @@
 
 <h4 id="a-note-on-cost">A Note On Cost</h4>
 
-<p>This will reduce your NAT Gateway cost, which is arguably the most notoriously expensive networking component in AWS.</p>
+<p>Your NAT Gateway cost, arguably AWS’s most notoriously expensive networking component, will be reduced with this option.</p>
 
 <p>On one hand, <a href="https://docs.aws.amazon.com/whitepapers/latest/building-scalable-secure-multi-vpc-network-infrastructure/centralized-egress-to-internet.html">AWS states</a>:</p>
 
@@ -208,13 +210,13 @@
 <p>On the other hand, they also say:</p>
 
 <blockquote>
-  <p>In some edge cases, when you send huge amounts of data through a NAT gateway from a VPC, keeping the NAT local in the VPC to avoid the Transit Gateway data processing charge might be a more cost-effective option.</p>
+  <p>In some edge cases, when you send massive amounts of data through a NAT gateway from a VPC, keeping the NAT local in the VPC to avoid the Transit Gateway data processing charge might be a more cost-effective option.</p>
 </blockquote>
 
-<p>Sending huge amounts of data through a NAT Gateway should be avoided anyway.
+<p>Sending massive amounts of data through a NAT Gateway should be avoided anyway.
 <a href="https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html">S3</a>, <a href="https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html">Splunk</a>, <a href="https://docs.honeycomb.io/integrations/aws/aws-privatelink/">Honeycomb</a>, and similar companies<sup id="fnref:1350" role="doc-noteref"><a href="#fn:1350" class="footnote" rel="footnote">2</a></sup> have VPC endpoints you can utilize to lower NAT Gateway data processing charges.</p>
 
-<p>The following is a graph, <a href="https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5">generated with Python</a>. As you can see at e.g. 20 VPCs you’d need to be sending over 55 TB for centralized egress to be more expensive, it only gets more worthwhile the more VPCs you add.
+<p>The following is a graph <a href="https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5">generated with Python</a>. As you can see, at, e.g., 20 VPCs, you’d need to be sending over 55 TB for centralized egress to be more expensive. It only gets more worthwhile the more VPCs you add.
 <img src="https://i.imgur.com/fxKEToY.png" alt="alt text" /></p>
 
 <p>Chime is one of the edge cases AWS mentioned; Chime wrote about <em>petabytes</em> of data and <a href="https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb">saved seven figures getting rid of NAT Gateways</a>. For them, TGW would break the bank. 1 PB of data transferred would require 324 VPCs to break even, and 2 PB would require 646 VPCs.</p>
@@ -225,66 +227,59 @@
 
 <p>PrivateLink and VPC Peering are mostly non-options. See the <a href="#why-is-vpc-peering-not-a-straightforward-option">FAQ</a> for more information.</p>
 
-<p>However, if you are willing to do a lot of heavy lifting that is orthogonal to AWS primitives, you <em>can</em> use these in combination with <a href="https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9">a proxy</a>, to accomplish centralized egress. This is because the destination IP of outbound traffic won’t be the Internet, but a private IP.</p>
-
-<p>This is assuming you are deploying e.g. iptables, to re-route Internet-destined traffic on every host.</p>
+<p>However, suppose you are willing to do a lot of heavy lifting that is orthogonal to AWS primitives. In that case, you <em>can</em> use these with <a href="https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9">a proxy</a> to accomplish centralized egress. This works because the destination IP of outbound traffic won’t be the Internet, but a private IP, due to deploying, e.g., iptables to re-route Internet-destined traffic on every host.</p>
 
 <p>Some reasons you may not want to do this are:</p>
 <ul>
   <li>Significant effort</li>
   <li>It won’t be possible for all subaccount types, such as sandbox accounts. (Where requiring <code class="language-plaintext highlighter-rouge">iptables</code> and a proxy are too heavyweight.)</li>
-  <li>Egress filtering is lower-priority than preventing accidental Internet-exposure. So tightly coupling the two and needing to setup a proxy first may not make strategic sense.</li>
-  <li>If something goes wrong on the host, the lost traffic will not appear in VPC flow logs <sup id="fnref:98" role="doc-noteref"><a href="#fn:98" class="footnote" rel="footnote">3</a></sup> or traffic mirroring logs.<sup id="fnref:985" role="doc-noteref"><a href="#fn:985" class="footnote" rel="footnote">4</a></sup> The DNS lookups will show up in Route53 query logs, but that’s it.</li>
+  <li>Egress filtering is a lower priority than preventing accidental Internet-exposure. So, tightly coupling the two and needing to set up a proxy first may not make strategic sense.</li>
+  <li>If something goes wrong on the host, the lost traffic will not appear in VPC flow logs <sup id="fnref:98" role="doc-noteref"><a href="#fn:98" class="footnote" rel="footnote">3</a></sup> or traffic mirroring logs.<sup id="fnref:985" role="doc-noteref"><a href="#fn:985" class="footnote" rel="footnote">4</a></sup> The DNS lookups will appear in Route53 query logs, but that’s it.</li>
 </ul>
 
-<p>With that said, AWS does not have a primitive to perform Egress filtering,<sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">5</a></sup> so you will eventually have to implement Egress filtering via a proxy or GWLB. Therefore, in e.g. production accounts, you could go with this option.</p>
+<p>With that said, AWS does not have a primitive to perform Egress filtering,<sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">5</a></sup> so you will eventually have to implement Egress filtering via a proxy or GWLB. Therefore, in production accounts, you could go with this option.</p>
 
 <p>Using PrivateLink, in this way, would look like this:
-<img src="https://i.imgur.com/vg9rcTE.png" alt="alt text" /></p>
-
-<p>(Note that no NAT Gateway is necessary here, as Envoy is running in an public subnet.)</p>
+<img src="https://i.imgur.com/vg9rcTE.png" alt="alt text" />
+(No NAT Gateway is necessary here, as Envoy is running in a public subnet.)</p>
 
 <h3 id="option-3-centralized-egress-via-gateway-load-balancer-gwlb-with-firewall">Option 3: Centralized Egress via Gateway Load Balancer (GWLB) with Firewall</h3>
 
 <p>TODO: Re-write this section.</p>
 
-<p><a href="https://aws.amazon.com/blogs/aws/introducing-aws-gateway-load-balancer-easy-deployment-scalability-and-high-availability-for-partner-appliances/">GWLB</a> is a service intended to enable the deployment of virtual appliances in the form of firewalls, intrusion detection/prevention systems and deep packet inspection systems. The appliances get sent the original traffic <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/integrate-your-custom-logic-or-appliance-with-aws-gateway-load-balancer/">encapsulated via the Geneve protocol</a>.<sup id="fnref:99328" role="doc-noteref"><a href="#fn:99328" class="footnote" rel="footnote">6</a></sup></p>
+<p><a href="https://aws.amazon.com/blogs/aws/introducing-aws-gateway-load-balancer-easy-deployment-scalability-and-high-availability-for-partner-appliances/">GWLB</a> is a service intended to enable the deployment of virtual appliances in the form of firewalls, intrusion detection/prevention systems, and deep packet inspection systems. The appliances get sent the original traffic <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/integrate-your-custom-logic-or-appliance-with-aws-gateway-load-balancer/">encapsulated via the Geneve protocol</a>.<sup id="fnref:99328" role="doc-noteref"><a href="#fn:99328" class="footnote" rel="footnote">6</a></sup></p>
 
 <p>The reason why PrivateLink was mostly a non-option was that interface endpoint ENIs have “<a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics">Source/destination checking</a>” enabled, and <a href="#why-is-vpc-privatelink-not-a-straightforward-option">you cannot disable it since it is managed by AWS</a>.</p>
 
-<p>However, Gateway Load Balancer endpoint ENIs <em>have “<a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics">Source/destination checking</a>” disabled!</em>  This is to accompany their intended use-case of inspecting traffic.</p>
+<p>However, Gateway Load Balancer endpoint ENIs <em>have “<a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics">Source/destination checking</a>” disabled</em>  to support their intended use-cases. This enables us to send 0.0.0.0/0 destined traffic to a GWLBe as we did for the TGW in Option 1.</p>
 
-<p>This enables us to send 0.0.0.0/0 destined traffic to a GWLBe, in the same way we did for the TGW in Option 1.</p>
+<p><img src="https://i.imgur.com/tIQaTa0.png" alt="alt text" />
+(No NAT Gateway is necessary here, as the firewall is running in a public subnet and performing NAT. <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/best-practices-for-deploying-gateway-load-balancer/">AWS</a> and <a href="https://networkgeekstuff.com/networking/basic-load-balancer-scenarios-explained/">others</a> call this two-arm mode.)</p>
 
-<p>This looks like:
-<img src="https://i.imgur.com/tIQaTa0.png" alt="alt text" /></p>
-
-<p>(Note that no NAT Gateway is necessary here, as the firewall is running in an public subnet and performing NAT. <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/best-practices-for-deploying-gateway-load-balancer/">AWS</a> and <a href="https://networkgeekstuff.com/networking/basic-load-balancer-scenarios-explained/">others</a> call this two-arm mode.)</p>
-
-<p>Security-wise, unfortunately, unless they do decryption, firewalls can’t filter on URL path – for example, you can’t block all of github.com except for github.com/mycompany. The better vendors don’t seem to offer decryption, I think you’re better off using a proxy (i.e. the previous option) if you want to filter on URL paths.</p>
+<p>Security-wise, unfortunately, unless they do decryption, firewalls can’t filter on URL path – for example, you can’t block all of github.com except for github.com/mycompany. The better vendors don’t seem to offer decryption; you’re probably better off using a proxy (i.e., the previous option) if you want to filter on URL paths.</p>
 
 <p>Because the firewall needs to support Geneve encapsulation, be invulnerable to SNI spoofing, fast, reliable and not <a href="https://chasersystems.com/discriminat/faq/#are-the-out-of-band-dns-lookups-susceptible-to-ip-address-mismatches">susceptible to IP address mismatches</a>. It is not easy to create an open-source alternative to DiscrimiNAT.</p>
 
-<p><a href="https://github.com/ChaserSystems/terraform-aws-discriminat-gwlb#deployment-examples">DiscrimiNAT</a> seems superior to Palo Alto Firewall<sup id="fnref:99351" role="doc-noteref"><a href="#fn:99351" class="footnote" rel="footnote">7</a></sup> as you just <a href="https://chasersystems.com/docs/discriminat/aws/quick-start/#viii-configuring-a-whitelist">edit some security group descriptions to configure it</a>, and don’t need to sift through a mountain of convoluted materials or UI/UX from the 90s. However, DiscrimiNAT would need to add subaccount support for the diagram above to work, to read the security groups.</p>
+<p>The firewall must support Geneve encapsulation, be invulnerable to SNI spoofing, fast, reliable, and not <a href="https://chasersystems.com/discriminat/faq/#are-the-out-of-band-dns-lookups-susceptible-to-ip-address-mismatches">susceptible to IP address mismatches</a>, so creating an open-source alternative to DiscrimiNAT is not easy.</p>
+
+<p><a href="https://github.com/ChaserSystems/terraform-aws-discriminat-gwlb#deployment-examples">DiscrimiNAT</a> seems superior to Palo Alto Firewall<sup id="fnref:99351" role="doc-noteref"><a href="#fn:99351" class="footnote" rel="footnote">7</a></sup> as all you do is <a href="https://chasersystems.com/docs/discriminat/aws/quick-start/#viii-configuring-a-whitelist">edit some security group descriptions to configure it</a>. You don’t need to sift through a mountain of convoluted materials or UI/UX from the 90s. However, DiscrimiNAT would need to add subaccount support for the diagram above to function to read the security groups.</p>
 
 <h3 id="option-4-vpc-sharing">Option 4: VPC Sharing</h3>
 
-<p>This is a tempting, simple option, that is not well known.<sup id="fnref:996" role="doc-noteref"><a href="#fn:996" class="footnote" rel="footnote">8</a></sup></p>
+<p>VPC Sharing is a tempting, simple, and little-known option.<sup id="fnref:996" role="doc-noteref"><a href="#fn:996" class="footnote" rel="footnote">8</a></sup></p>
 
-<p>You can simply make a VPC in your networking account, and share private subnets to subaccounts.</p>
+<p>You can simply make a VPC in your networking account and share private subnets to subaccounts.</p>
 
-<p>This looks like:
-<img src="https://i.imgur.com/4OojfzP.png" alt="alt text" /></p>
+<p><img src="https://i.imgur.com/4OojfzP.png" alt="alt text" /></p>
 
-<p>The main problem with this approach, is that there will <em>still be an Internet Gateway in the VPC</em>.</p>
+<p>The main problem with this approach is that there will <em>still be an Internet Gateway in the VPC</em>.</p>
 
-<p>Unless you also used a TGW:<sup id="fnref:12202" role="doc-noteref"><a href="#fn:12202" class="footnote" rel="footnote">9</a></sup></p>
-
-<p><img src="https://i.imgur.com/aYyKrH1.png" alt="alt text" /></p>
+<p>Unless you also used a TGW:<sup id="fnref:12202" role="doc-noteref"><a href="#fn:12202" class="footnote" rel="footnote">9</a></sup>
+<img src="https://i.imgur.com/aYyKrH1.png" alt="alt text" /></p>
 
 <p>Assuming you don’t want to pay for TGW, you can ban actions that would explicitly give an instance in a private subnet a public IP.<sup id="fnref:220220" role="doc-noteref"><a href="#fn:220220" class="footnote" rel="footnote">10</a></sup></p>
 
-<p>This can be done by banning <a href="https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29"><code class="language-plaintext highlighter-rouge">ec2:RunInstances</code> with the <code class="language-plaintext highlighter-rouge">"ec2:AssociatePublicIpAddress</code> condition key set to <code class="language-plaintext highlighter-rouge">"true"</code></a>, and EIP related IAM actions such as <code class="language-plaintext highlighter-rouge">ec2:AssociateAddress</code>.</p>
+<p>These actions are <a href="https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29"><code class="language-plaintext highlighter-rouge">ec2:RunInstances</code> with the <code class="language-plaintext highlighter-rouge">"ec2:AssociatePublicIpAddress</code> condition key set to <code class="language-plaintext highlighter-rouge">"true"</code></a> and EIP-related IAM actions such as <code class="language-plaintext highlighter-rouge">ec2:AssociateAddress</code>.</p>
 
 <p>Then, the only problem is AWS services that treat the presence of an IGW as a ‘welcome mat’ to make something face the Internet; <a href="https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html#global-accelerator">Global Accelerator</a> is an example. These are not a big deal because so many other services don’t require an IGW to make Internet-facing resources, so you have to deal with the ‘hundreds of AWS services’ problem holistically.</p>
 
@@ -298,7 +293,7 @@
   <p>Can share with <strong><em>only</em></strong> AWS accounts in its own organization.</p>
 </blockquote>
 
-<p>This means you can never perform an AWS organization migration in the future.</p>
+<p>Meaning you can never perform an AWS organization migration in the future.</p>
 
 <p>If you are like most AWS customers:</p>
 <ul>
@@ -307,9 +302,9 @@
   <li>It is infeasible to ‘empty’ out the current management account over time</li>
 </ul>
 
-<p>Then you will need to perform an org migration in the future, and should stay away from VPC Sharing for any environments you can’t delete easily.</p>
+<p>Then, you will need to perform an org migration in the future and should stay away from VPC Sharing for any environments you can’t easily delete.</p>
 
-<p>However, suppose you are willing to risk a production outage 😂 (Particularly if you do not use ASGs or Load Balancers, which will lose access to the subnets.) The NAT Gateway will remain functional according to AWS.</p>
+<p>However, suppose you are willing to risk a production outage 😂 (Particularly if you do not use ASGs or Load Balancers, which will lose access to the subnets.) The NAT Gateway will remain functional, according to AWS.</p>
 
 <p>See</p>
 
@@ -321,11 +316,11 @@
 
 <h3 id="option-5-ipv6-for-egress">Option 5: IPv6 for Egress</h3>
 
-<p>Remember how I said, “in AWS: Egress to the Internet is tightly coupled with Ingress from the Internet” above. For IPv6, that’s a lie.</p>
+<p>Remember how I said, “In AWS: Egress to the Internet is tightly coupled with Ingress from the Internet” above? For IPv6, that’s a lie.</p>
 
 <p>IPv6 addresses are globally unique and, therefore, public by default. Due to this, AWS created the primitive of an <a href="https://docs.aws.amazon.com/vpc/latest/userguide/egress-only-internet-gateway.html">Egress-only Internet Gateway</a>,</p>
 
-<p>Unfortunately, with this primitive, there is no way to connect IPv4-only destinations, so if that is necessary – which it likely is – go with one of the other 3 options.</p>
+<p>Unfortunately, with this primitive, there is no way to connect IPv4-only destinations, so if you need to – which is likely – go with one of the other options.</p>
 
 <p><img src="https://i.imgur.com/wtuaa71.png" alt="alt text" /></p>
 
@@ -333,7 +328,7 @@
 
 <p>As Sébastien Stormacq wrote in <a href="https://aws.amazon.com/blogs/aws/let-your-ipv6-only-workloads-connect-to-ipv4-services/">Let Your IPv6-only Workloads Connect to IPv4 Services</a>, you need only add a route table entry and set <code class="language-plaintext highlighter-rouge">--enable-dns64</code> on subnets to accomplish this – but you unfortunately still need an IGW.</p>
 
-<p><code class="language-plaintext highlighter-rouge">--enable-dns64</code> makes it so DNS queries made to the Amazon-provided DNS Resolver will return synthetic IPv6 addresses for IPv4-only destinations with the well-known <code class="language-plaintext highlighter-rouge">64:ff9b::/96</code> prefix. The route table entry makes traffic with that prefix go to the NAT Gateway.</p>
+<p><code class="language-plaintext highlighter-rouge">--enable-dns64</code> makes it so DNS queries to the Amazon-provided DNS Resolver will return synthetic IPv6 addresses for IPv4-only destinations with the well-known <code class="language-plaintext highlighter-rouge">64:ff9b::/96</code> prefix. The route table entry makes traffic with that prefix go to the NAT Gateway.</p>
 
 <p>The problem is the NAT Gateway then needs an IGW to communicate with the destination, so one of the <a href="https://d1.awsstatic.com/architecture-diagrams/ArchitectureDiagrams/IPv6-reference-architectures-for-AWS-and-hybrid-networks-ra.pdf">other options</a> becomes necessary.</p>
 
@@ -408,18 +403,18 @@
 
 <h3 id="can-you-walk-through-the-cost-details-around-option-1">Can you walk through the cost details around Option 1?</h3>
 
-<p><em>Note: This is assuming US East, 100 VPCs and 3 AZs. If you want to change these variables, see the <a href="https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5">Python gist</a> that made <a href="#option-1-centralized-egress-via-transit-gateway-tgw">the graph above</a>.</em></p>
+<p><em>Note: This assumes US East, 100 VPCs, and 3 AZs. If you want to change these variables, see the <a href="https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5">Python gist</a> that made <a href="#option-1-centralized-egress-via-transit-gateway-tgw">the graph above</a>.</em></p>
 
 <h4 id="cost-example-no-centralized-egress">Cost Example: No Centralized Egress</h4>
 
 <p><strong>Hourly Costs</strong></p>
 
 <blockquote>
-  <p>For 1 NAT Gateway: $0.045 <a href="https://aws.amazon.com/vpc/pricing/">per hour</a>. They are also AZ-specific. So that is 3 availability zones * <a href="https://techoverflow.net/2022/12/21/how-many-hours-are-there-in-each-month/">730.48</a> hours in a month * $0.045 = $98.61 per month per VPC.</p>
+  <p>For 1 NAT Gateway: $0.045 <a href="https://aws.amazon.com/vpc/pricing/">per hour</a>. They are also AZ-specific. So that is 3 availability zones * <a href="https://techoverflow.net/2022/12/21/how-many-hours-are-there-in-each-month/">730.48</a> hours a month * $0.045 = $98.61 per month per VPC.</p>
 </blockquote>
 
 <blockquote>
-  <p>Let’s say you have 100 VPCs, split across a variety of different accounts/regions etc.</p>
+  <p>Let’s say you have 100 VPCs split across various different accounts/regions.</p>
 </blockquote>
 
 <blockquote>
@@ -429,11 +424,11 @@
 <p><strong>Data Processing Costs</strong></p>
 
 <blockquote>
-  <p>For NAT Gateway: $0.045 <a href="https://aws.amazon.com/vpc/pricing/">per GB data processed</a></p>
+  <p>For NAT Gateway: $0.045 <a href="https://aws.amazon.com/vpc/pricing/">per GB of data processed</a></p>
 </blockquote>
 
 <blockquote>
-  <p>Let’s say you have 100 GB a month, that is just $4.50 per month.</p>
+  <p>100 GB a month would be $4.50.</p>
 </blockquote>
 
 <blockquote>
@@ -441,7 +436,7 @@
 </blockquote>
 
 <blockquote>
-  <p>10 TB would be $450 a month.</p>
+  <p>10 TB a month would be $450.</p>
 </blockquote>
 
 <h4 id="cost-example-centralized-egress">Cost Example: Centralized Egress</h4>
@@ -471,7 +466,7 @@
 </blockquote>
 
 <blockquote>
-  <p>In conclusion, you’d need to be sending more than 303.67 TB for centralized egress to cost more.</p>
+  <p>In conclusion, for centralized egress to cost more, you’d need to send more than 303.67 TB.</p>
 </blockquote>
 
 <h3 id="why-is-vpc-peering-not-a-straightforward-option">Why is VPC peering not a straightforward option?</h3>
@@ -512,7 +507,9 @@
 
 <p>To dive deeper: When you make an interface VPC endpoint with AWS PrivateLink, a “<a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/requester-managed-eni.html">requester-managed network interface</a>” is created. The “requester” is AWS, as you can see by the mysterious “727180483921” account ID.</p>
 
-<p>If you try to disable “<a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics">Source/destination checking</a>” (which ensures that the ENI is either the source or the destination of any traffic it receives), you will not be able to, since it is managed by AWS. So traffic is dropped before it would ever travel cross-account.</p>
+<p>If you try to disable  (which ensures that the ENI is either the source or the destination of any traffic it receives), you will not be able to, since it is managed by AWS. So traffic is dropped before it would ever travel cross-account.</p>
+
+<p>If you try to disable “<a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics">Source/destination checking</a>” (which ensures that the ENI is either the source or the destination of any traffic it receives), you will not be able to since AWS manages it. So traffic is dropped before it would ever travel cross-account.</p>
 
 <h3 id="how-much-cheaper-is-vpc-sharing-than-tgw">How much cheaper is VPC Sharing than TGW?</h3>
 
@@ -525,7 +522,7 @@
 </blockquote>
 
 <blockquote>
-  <p>At $0.02 <a href="https://aws.amazon.com/transit-gateway/pricing/">per GB data processed</a>, that is 20 bucks a month more per TB of data!</p>
+  <p>At $0.02 <a href="https://aws.amazon.com/transit-gateway/pricing/">per GB of data processed</a>, that is 20 bucks a month more per TB of data!</p>
 </blockquote>
 
 <p>Assuming 1 TB of data processed a month, that is $1,882.72 more a month.</p>
