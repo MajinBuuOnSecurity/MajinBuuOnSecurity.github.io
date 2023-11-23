@@ -174,7 +174,7 @@
 
 <h2 id="supporting-egress-in-private-vpc-accounts">Supporting Egress in Private VPC Accounts</h2>
 
-<p>To support the Egress use-case, you must ensure your network architecture tightly couples NAT with an Internet Gateway by, e.g., giving subaccounts a paved path to a NAT Gateway in another account. You can do this via:</p>
+<p>To support the Egress use-case, you must ensure your network architecture tightly couples NAT with an Internet Gateway by, e.g., giving subaccounts a paved path to a NAT Gateway in another account. Your options:</p>
 <ol>
   <li><a href="#option-1-centralized-egress-via-transit-gateway-tgw">Centralized Egress via Transit Gateway (TGW)</a></li>
   <li><a href="#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-proxy">Centralized Egress via PrivateLink (or VPC Peering) with Proxy</a></li>
@@ -190,7 +190,7 @@
 
 <h3 id="option-1-centralized-egress-via-transit-gateway-tgw">Option 1: Centralized Egress via Transit Gateway (TGW)</h3>
 
-<p>This is the most common implementation and probably the best. If money is no issue for you, go this route.</p>
+<p>TGW is the most common implementation and probably the best. If money is no issue for you, go this route.</p>
 
 <p><img src="https://i.imgur.com/alRH2hN.png" alt="alt text" /></p>
 
@@ -240,9 +240,9 @@
   <li>If something goes wrong on the host, the lost traffic will not appear in VPC flow logs <sup id="fnref:98" role="doc-noteref"><a href="#fn:98" class="footnote" rel="footnote">3</a></sup> or traffic mirroring logs.<sup id="fnref:985" role="doc-noteref"><a href="#fn:985" class="footnote" rel="footnote">4</a></sup> The DNS lookups will appear in Route53 query logs, but that’s it.</li>
 </ul>
 
-<p>With that said, AWS does not have a primitive to perform Egress filtering,<sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">5</a></sup> so you will eventually have to implement Egress filtering via a proxy or GWLB. Therefore, in production accounts, you could go with this option.</p>
+<p>With that said, AWS does not have a primitive to perform Egress filtering,<sup id="fnref:99" role="doc-noteref"><a href="#fn:99" class="footnote" rel="footnote">5</a></sup> so you will eventually have to implement Egress filtering via a proxy or GWLB. Therefore, in non-sandbox accounts, you could go with this option.</p>
 
-<p>Using PrivateLink, in this way, would look like this:
+<p>Using PrivateLink, in this way, looks like:
 <img src="https://i.imgur.com/vg9rcTE.png" alt="alt text" />
 (No NAT Gateway is necessary here, as Envoy is running in a public subnet.)</p>
 
@@ -273,7 +273,7 @@
 
 <p><img src="https://i.imgur.com/4OojfzP.png" alt="alt text" /></p>
 
-<p>The main problem with this approach is that there will <em>still be an Internet Gateway in the VPC</em>.</p>
+<p>The main problem is that there will <em>still be an Internet Gateway in the VPC</em>.</p>
 
 <p>Unless you also used a TGW:<sup id="fnref:12202" role="doc-noteref"><a href="#fn:12202" class="footnote" rel="footnote">9</a></sup>
 <img src="https://i.imgur.com/aYyKrH1.png" alt="alt text" /></p>
@@ -319,9 +319,9 @@
 
 <p>Remember how I said, “In AWS: Egress to the Internet is tightly coupled with Ingress from the Internet” above? For IPv6, that’s a lie.</p>
 
-<p>IPv6 addresses are globally unique and, therefore, public by default. Due to this, AWS created the primitive of an <a href="https://docs.aws.amazon.com/vpc/latest/userguide/egress-only-internet-gateway.html">Egress-only Internet Gateway</a>,</p>
+<p>IPv6 addresses are globally unique and, therefore, public by default. Due to this, AWS created the primitive of an <a href="https://docs.aws.amazon.com/vpc/latest/userguide/egress-only-internet-gateway.html">Egress-only Internet Gateway</a> (EIGW).</p>
 
-<p>Unfortunately, with this primitive, there is no way to connect IPv4-only destinations, so if you need to – which is likely – go with one of the other options.</p>
+<p>Unfortunately, with an EIGW, there is no way to connect IPv4-only destinations, so if you need to – which is likely – go with one of the other options.</p>
 
 <p><img src="https://i.imgur.com/wtuaa71.png" alt="alt text" /></p>
 
@@ -618,7 +618,7 @@
       <p>The usual suspects <a href="https://awsteele.com/blog/2022/01/20/aws-gwlb-deep-packet-manipulation.html">Aiden Steele</a>, <a href="https://web.archive.org/web/20220129101637/https://www.sentiatechblog.com/geneveproxy-an-aws-gateway-load-balancer-reference-application">Luc van Donkersgoed</a>, and <a href="https://www.lastweekinaws.com/blog/what-i-dont-get-about-the-aws-gateway-load-balancer/">Corey Quinn</a> have written about GWLB. <a href="#fnref:99328" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:99351" role="doc-endnote">
-      <p>This is just my 1st impressions. <a href="https://github.com/new23d">Dhruv</a> didn’t pay me to write this. <a href="#fnref:99351" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>These are just my 1st impressions. <a href="https://github.com/new23d">Dhruv</a> didn’t pay me to write this. <a href="#fnref:99351" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:996" role="doc-endnote">
       <p>Shout out to <a href="https://awsteele.com/blog/2022/01/02/shared-vpcs-are-underrated.html">Aiden Steele</a> and <a href="https://sjramblings.io/unlock-the-hidden-power-of-vpc-sharing-in-aws">Stephen Jones</a> for writing their thoughts on VPC Sharing. <a href="#fnref:996" class="reversefootnote" role="doc-backlink">&#8617;</a></p>

@@ -47,7 +47,7 @@ The Egress use-case typically looks like:
 
 ## Supporting Egress in Private VPC Accounts
 
-To support the Egress use-case, you must ensure your network architecture tightly couples NAT with an Internet Gateway by, e.g., giving subaccounts a paved path to a NAT Gateway in another account. You can do this via:
+To support the Egress use-case, you must ensure your network architecture tightly couples NAT with an Internet Gateway by, e.g., giving subaccounts a paved path to a NAT Gateway in another account. Your options:
 1. [Centralized Egress via Transit Gateway (TGW)](#option-1-centralized-egress-via-transit-gateway-tgw)
 2. [Centralized Egress via PrivateLink (or VPC Peering) with Proxy](#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-proxy)
 3. [Centralized Egress via Gateway Load Balancer (GWLB) with Firewall](#option-3-centralized-egress-via-gateway-load-balancer-gwlb-with-firewall)
@@ -61,7 +61,7 @@ My recommendation:
 
 ### Option 1: Centralized Egress via Transit Gateway (TGW)
 
-This is the most common implementation and probably the best. If money is no issue for you, go this route.
+TGW is the most common implementation and probably the best. If money is no issue for you, go this route.
 
 ![alt text](https://i.imgur.com/alRH2hN.png) 
 
@@ -108,9 +108,9 @@ Some reasons you may not want to do this are:
 - Egress filtering is a lower priority than preventing accidental Internet-exposure. So, tightly coupling the two and needing to set up a proxy first may not make strategic sense.
 - If something goes wrong on the host, the lost traffic will not appear in VPC flow logs [^98] or traffic mirroring logs.[^985] The DNS lookups will appear in Route53 query logs, but that's it.
 
-With that said, AWS does not have a primitive to perform Egress filtering,[^99] so you will eventually have to implement Egress filtering via a proxy or GWLB. Therefore, in production accounts, you could go with this option.
+With that said, AWS does not have a primitive to perform Egress filtering,[^99] so you will eventually have to implement Egress filtering via a proxy or GWLB. Therefore, in non-sandbox accounts, you could go with this option.
 
-Using PrivateLink, in this way, would look like this:
+Using PrivateLink, in this way, looks like:
 ![alt text](https://i.imgur.com/vg9rcTE.png)
 (No NAT Gateway is necessary here, as Envoy is running in a public subnet.)
 
@@ -142,7 +142,7 @@ The firewall must support Geneve encapsulation, be invulnerable to SNI spoofing,
 Regarding specific vendors, [DiscrimiNAT](https://github.com/ChaserSystems/terraform-aws-discriminat-gwlb#deployment-examples) seems superior to Palo Alto Firewall,[^99351] as all you do is [edit some security group descriptions to configure it](https://chasersystems.com/docs/discriminat/aws/quick-start/#viii-configuring-a-whitelist). You don't need to sift through a mountain of convoluted materials or UI/UX from the 90s. However, DiscrimiNAT would need to add subaccount support for the diagram above to function to read the security groups.
 
 
-[^99351]: This is just my 1st impressions. [Dhruv](https://github.com/new23d) didn't pay me to write this.
+[^99351]: These are just my 1st impressions. [Dhruv](https://github.com/new23d) didn't pay me to write this.
 
 ### Option 4: VPC Sharing
 
@@ -154,7 +154,7 @@ You can simply make a VPC in your networking account and share private subnets t
 
 ![alt text](https://i.imgur.com/4OojfzP.png)
 
-The main problem with this approach is that there will _still be an Internet Gateway in the VPC_.
+The main problem is that there will _still be an Internet Gateway in the VPC_.
 
 Unless you also used a TGW:[^12202]
 ![alt text](https://i.imgur.com/aYyKrH1.png)
@@ -200,9 +200,9 @@ from [Migrating accounts between AWS Organizations, a network perspective](https
 
 Remember how I said, "In AWS: Egress to the Internet is tightly coupled with Ingress from the Internet" above? For IPv6, that's a lie.
 
-IPv6 addresses are globally unique and, therefore, public by default. Due to this, AWS created the primitive of an [Egress-only Internet Gateway](https://docs.aws.amazon.com/vpc/latest/userguide/egress-only-internet-gateway.html), 
+IPv6 addresses are globally unique and, therefore, public by default. Due to this, AWS created the primitive of an [Egress-only Internet Gateway](https://docs.aws.amazon.com/vpc/latest/userguide/egress-only-internet-gateway.html) (EIGW).
 
-Unfortunately, with this primitive, there is no way to connect IPv4-only destinations, so if you need to – which is likely – go with one of the other options.
+Unfortunately, with an EIGW, there is no way to connect IPv4-only destinations, so if you need to – which is likely – go with one of the other options.
 
 ![alt text](https://i.imgur.com/wtuaa71.png)
 
