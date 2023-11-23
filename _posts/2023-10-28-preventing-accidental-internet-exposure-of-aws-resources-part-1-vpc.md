@@ -32,7 +32,7 @@ It works because although there are many ways an accidental Internet-exposure mi
 Or:       
 ![alt text](https://i.imgur.com/gyXZz2E.gif)
 
-[^2111]: Alongside deleting all the IGWs/VPCs that AWS makes by default in new accounts.
+[^2111]: Along with deleting all the IGWs/VPCs that AWS makes by default in new accounts.
 
 With IGWs banned, you can hand subaccounts over to customers, and they will never be able to make public-facing load balancers or EC2 instances regardless of their IAM permissions!
 
@@ -84,7 +84,7 @@ On the other hand, they also say:
 Sending massive amounts of data through a NAT Gateway should be avoided anyway.
 [S3](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html), [Splunk](https://www.splunk.com/en_us/blog/platform/announcing-aws-privatelink-support-on-splunk-cloud-platform.html), [Honeycomb](https://docs.honeycomb.io/integrations/aws/aws-privatelink/), and similar companies[^1350] have VPC endpoints you can utilize to lower NAT Gateway data processing charges.
 
-[^1350]: There are some companies with agents meant to be deployed on EC2s that do not offer a VPC endpoint, or charge an exorbitant fee, [perhaps](https://sso.tax/) a [wall](https://fido.fail/) of [shame](https://github.com/SummitRoute/imdsv2_wall_of_shame#imdsv2-wall-of-shame) can be made. Chime [mentioned](https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb): `"Although our vendor offers PrivateLink, they have also chosen to monetize it, charging so much for access to the feature that it was not a viable option."`
+[^1350]: Some companies with agents meant to be deployed on EC2s do not offer a VPC endpoint or charge an exorbitant fee to use one; [perhaps](https://sso.tax/) a [wall](https://fido.fail/) of [shame](https://github.com/SummitRoute/imdsv2_wall_of_shame#imdsv2-wall-of-shame) can be made. Chime [mentioned](https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb): `"Although our vendor offers PrivateLink, they have also chosen to monetize it, charging so much for access to the feature that it was not a viable option."`
 
 
 The following is a graph [generated with Python](https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5). As you can see, at, e.g., 20 VPCs, you'd need to be sending over 55 TB for centralized egress to be more expensive. It only gets more worthwhile the more VPCs you add.
@@ -98,7 +98,9 @@ See [the FAQ](#can-you-walk-through-the-cost-details-around-option-1) for a verb
 
 PrivateLink and VPC Peering are mostly non-options. See the [FAQ](#why-is-vpc-peering-not-a-straightforward-option) for more information.
 
-However, suppose you are willing to do a lot of heavy lifting that is orthogonal to AWS primitives. In that case, you _can_ use these with [a proxy](https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9) to accomplish centralized egress. This works because the destination IP of outbound traffic won't be the Internet, but a private IP, due to deploying, e.g., iptables to re-route Internet-destined traffic on every host.
+However, suppose you are willing to do a lot of heavy lifting that is orthogonal to AWS primitives.
+
+In that case, you _can_ use these with [a proxy](https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9) to accomplish centralized egress. This works because the destination IP of outbound traffic won't be the Internet, but a private IP, due to deploying, e.g., iptables to re-route Internet-destined traffic on every host.
 
 Some reasons you may not want to do this are:
 - Significant effort
@@ -112,11 +114,11 @@ Using PrivateLink, in this way, would look like this:
 ![alt text](https://i.imgur.com/vg9rcTE.png)
 (No NAT Gateway is necessary here, as Envoy is running in a public subnet.)
 
-[^98]: [Flow log limitations](https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html#flow-logs-limitations) does not state "Internet-bound traffic sent to a peering connection" or "Internet-bound traffic sent to a VPC interface endpoint." under `The following types of traffic are not logged:`. After testing I believe these are likely omitted due to not being a proper use-case.
+[^98]: [Flow log limitations](https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html#flow-logs-limitations) do not state "Internet-bound traffic sent to a peering connection" or "Internet-bound traffic sent to a VPC interface endpoint." under `The following types of traffic are not logged:`. After testing, I believe these are likely omitted due to not being a proper use-case.
 
 [^985]: A peering connection cannot be selected as a [traffic mirror source or target](https://docs.aws.amazon.com/vpc/latest/mirroring/traffic-mirroring-targets.html), but a network interface can. However, only an ENI belonging to an EC2 instance can be a mirror source, not an ENI belonging to an Interface endpoint. The documentation doesn't mention this anywhere I could find.
 
-[^99]: It has [AWS Network Firewall](https://aws.amazon.com/network-firewall/faqs/), which can be fooled via SNI spoofing. So it is, at best, a stepping stone to keep an inventory of your Egress traffic if you can’t get a proxy up and running short-term and are not using TLS 1.3 with encrypted client hello (ECH) or encrypted SNI (ESNI). I cringe at how [the FAQ](https://aws.amazon.com/network-firewall/faqs/) says these are not supported, rather than a bypass of the product. Sadly this euphemism [isn't unique to AWS](https://i.imgur.com/dPyFaNK.png).
+[^99]: It has [AWS Network Firewall](https://aws.amazon.com/network-firewall/faqs/), which can be fooled via SNI spoofing. So it is, at best, a stepping stone to keep an inventory of your Egress traffic if you can’t get a proxy up and running short-term and are not using TLS 1.3 with encrypted client hello (ECH) or encrypted SNI (ESNI). I cringe at how [the FAQ](https://aws.amazon.com/network-firewall/faqs/) says these are not supported rather than a bypass of the product. Sadly, this euphemism [isn't unique to AWS](https://i.imgur.com/dPyFaNK.png).
 
 ### Option 3: Centralized Egress via Gateway Load Balancer (GWLB) with Firewall
 
@@ -133,13 +135,11 @@ However, Gateway Load Balancer endpoint ENIs _have "[Source/destination checking
 ![alt text](https://i.imgur.com/tIQaTa0.png)
 (No NAT Gateway is necessary here, as the firewall is running in a public subnet and performing NAT. [AWS](https://aws.amazon.com/blogs/networking-and-content-delivery/best-practices-for-deploying-gateway-load-balancer/) and [others](https://networkgeekstuff.com/networking/basic-load-balancer-scenarios-explained/) call this two-arm mode.)
 
-Security-wise, unfortunately, unless they do decryption, firewalls can't filter on URL path -- for example, you can't block all of github.com except for github.com/mycompany. The better vendors don’t seem to offer decryption; you’re probably better off using a proxy (i.e., the previous option) if you want to filter on URL paths.
+Unfortunately, unless they do decryption, firewalls can't filter on URL paths -- for example, you can't block all of github.com except for github.com/mycompany. The better vendors don’t seem to offer decryption; you’re probably better off using a proxy (i.e., the previous option) if you want to filter on URL paths.
 
-Because the firewall needs to support Geneve encapsulation, be invulnerable to SNI spoofing, fast, reliable and not [susceptible to IP address mismatches](https://chasersystems.com/discriminat/faq/#are-the-out-of-band-dns-lookups-susceptible-to-ip-address-mismatches). It is not easy to create an open-source alternative to DiscrimiNAT.
+The firewall must support Geneve encapsulation, be invulnerable to SNI spoofing, fast, reliable, and not [susceptible to IP address mismatches](https://chasersystems.com/discriminat/faq/#are-the-out-of-band-dns-lookups-susceptible-to-ip-address-mismatches), so creating an open-source alternative is not easy.
 
-The firewall must support Geneve encapsulation, be invulnerable to SNI spoofing, fast, reliable, and not [susceptible to IP address mismatches](https://chasersystems.com/discriminat/faq/#are-the-out-of-band-dns-lookups-susceptible-to-ip-address-mismatches), so creating an open-source alternative to DiscrimiNAT is not easy.
-
-[DiscrimiNAT](https://github.com/ChaserSystems/terraform-aws-discriminat-gwlb#deployment-examples) seems superior to Palo Alto Firewall[^99351] as all you do is [edit some security group descriptions to configure it](https://chasersystems.com/docs/discriminat/aws/quick-start/#viii-configuring-a-whitelist). You don't need to sift through a mountain of convoluted materials or UI/UX from the 90s. However, DiscrimiNAT would need to add subaccount support for the diagram above to function to read the security groups.
+Regarding specific vendors, [DiscrimiNAT](https://github.com/ChaserSystems/terraform-aws-discriminat-gwlb#deployment-examples) seems superior to Palo Alto Firewall,[^99351] as all you do is [edit some security group descriptions to configure it](https://chasersystems.com/docs/discriminat/aws/quick-start/#viii-configuring-a-whitelist). You don't need to sift through a mountain of convoluted materials or UI/UX from the 90s. However, DiscrimiNAT would need to add subaccount support for the diagram above to function to read the security groups.
 
 
 [^99351]: This is just my 1st impressions. [Dhruv](https://github.com/new23d) didn't pay me to write this.
@@ -163,7 +163,7 @@ Unless you also used a TGW:[^12202]
 
 Assuming you don't want to pay for TGW, you can ban actions that would explicitly give an instance in a private subnet a public IP.[^220220]
 
-[^220220]: See [the FAQ](#what-happens-if-an-ec2-instance-in-a-private-subnet-gets-a-public-ip) for what it means to have an EC2 in a private subnet have a public IP.
+[^220220]: See [the FAQ](#what-happens-if-an-ec2-instance-in-a-private-subnet-gets-a-public-ip) for what it means to have an EC2 with a public IP in a private subnet.
 
 These actions are [`ec2:RunInstances` with the `"ec2:AssociatePublicIpAddress` condition key set to `"true"`](https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29) and EIP-related IAM actions such as `ec2:AssociateAddress`.
 
@@ -184,11 +184,11 @@ If you are like most AWS customers:
 - You want to follow Best Practices[^996221] and have an empty Management Account
 - It is infeasible to 'empty' out the current management account over time
 
-[^996221]: This is Stage 1 of Scott's [AWS Security Maturity Roadmap](https://summitroute.com/downloads/aws_security_maturity_roadmap-Summit_Route.pdf), for example.
+[^996221]: See Stage 1 of Scott's [AWS Security Maturity Roadmap](https://summitroute.com/downloads/aws_security_maturity_roadmap-Summit_Route.pdf), for example.
 
 Then, you will need to perform an org migration in the future and should stay away from VPC Sharing for any environments you can't easily delete.
 
-However, suppose you are willing to risk a production outage 😂 (Particularly if you do not use ASGs or Load Balancers, which will lose access to the subnets.) The NAT Gateway will remain functional, according to AWS.
+However, suppose you are willing to risk a production outage... (Particularly if you do not use ASGs or Load Balancers, which will lose access to the subnets.) The NAT Gateway will remain functional, according to AWS.
 
 See
 
@@ -343,7 +343,7 @@ Firewalls:
 - Palo Alto
 - Others (Cisco, maybe?)
 
-I do not know if Aviatrix/Palo Alto/Others are [bypassable like the AWS Network Firewall is](https://chasersystems.com/discriminat/comparison/aws-network-firewall/), but it is something to watch out for.
+I do not know if Aviatrix/Palo Alto/Others are [bypassable like AWS Network Firewall is](https://chasersystems.com/discriminat/comparison/aws-network-firewall/), but it is something to watch out for.
 
 ### What happens if an EC2 instance in a private subnet gets a public IP?
 
@@ -357,7 +357,7 @@ For a private subnet, the route table -- which is only consulted for outgoing tr
 
 [^91426]: According to that re:Invent session from [Colm MacCárthaigh](https://twitter.com/colmmacc?lang=en), and me testing [ACK scanning](https://nmap.org/book/scan-methods-ack-scan.html#:~:text=ACK%20scan%20is%20enabled%20by,both%20return%20a%20RST%20packet.) does not work through a NAT Gateway.
 
-[^9133]: A **3rd** shout out to Aiden Steele who [wrote about this in another context](https://twitter.com/__steele/status/1572752577648726016), and has [visuals / code here](https://github.com/aidansteele/matconnect#matconnect).
+[^9133]: A **3rd** shout out to Aiden Steele, who [wrote about this in another context](https://twitter.com/__steele/status/1572752577648726016), and has [visuals / code here](https://github.com/aidansteele/matconnect#matconnect).
 
 If the EC2 has UDP ports open, an attacker can receive responses, and you have a security problem. (A NACL will not help, as an Ingress deny rule blocking the Internet from hitting the EC2 will also block responses from the Internet to Egress Traffic.)
 

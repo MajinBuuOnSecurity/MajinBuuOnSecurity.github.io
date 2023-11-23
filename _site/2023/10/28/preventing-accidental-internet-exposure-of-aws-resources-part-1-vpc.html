@@ -228,7 +228,9 @@
 
 <p>PrivateLink and VPC Peering are mostly non-options. See the <a href="#why-is-vpc-peering-not-a-straightforward-option">FAQ</a> for more information.</p>
 
-<p>However, suppose you are willing to do a lot of heavy lifting that is orthogonal to AWS primitives. In that case, you <em>can</em> use these with <a href="https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9">a proxy</a> to accomplish centralized egress. This works because the destination IP of outbound traffic won’t be the Internet, but a private IP, due to deploying, e.g., iptables to re-route Internet-destined traffic on every host.</p>
+<p>However, suppose you are willing to do a lot of heavy lifting that is orthogonal to AWS primitives.</p>
+
+<p>In that case, you <em>can</em> use these with <a href="https://eng.lyft.com/internet-egress-filtering-of-services-at-lyft-72e99e29a4d9">a proxy</a> to accomplish centralized egress. This works because the destination IP of outbound traffic won’t be the Internet, but a private IP, due to deploying, e.g., iptables to re-route Internet-destined traffic on every host.</p>
 
 <p>Some reasons you may not want to do this are:</p>
 <ul>
@@ -257,13 +259,11 @@
 <p><img src="https://i.imgur.com/tIQaTa0.png" alt="alt text" />
 (No NAT Gateway is necessary here, as the firewall is running in a public subnet and performing NAT. <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/best-practices-for-deploying-gateway-load-balancer/">AWS</a> and <a href="https://networkgeekstuff.com/networking/basic-load-balancer-scenarios-explained/">others</a> call this two-arm mode.)</p>
 
-<p>Security-wise, unfortunately, unless they do decryption, firewalls can’t filter on URL path – for example, you can’t block all of github.com except for github.com/mycompany. The better vendors don’t seem to offer decryption; you’re probably better off using a proxy (i.e., the previous option) if you want to filter on URL paths.</p>
+<p>Unfortunately, unless they do decryption, firewalls can’t filter on URL paths – for example, you can’t block all of github.com except for github.com/mycompany. The better vendors don’t seem to offer decryption; you’re probably better off using a proxy (i.e., the previous option) if you want to filter on URL paths.</p>
 
-<p>Because the firewall needs to support Geneve encapsulation, be invulnerable to SNI spoofing, fast, reliable and not <a href="https://chasersystems.com/discriminat/faq/#are-the-out-of-band-dns-lookups-susceptible-to-ip-address-mismatches">susceptible to IP address mismatches</a>. It is not easy to create an open-source alternative to DiscrimiNAT.</p>
+<p>The firewall must support Geneve encapsulation, be invulnerable to SNI spoofing, fast, reliable, and not <a href="https://chasersystems.com/discriminat/faq/#are-the-out-of-band-dns-lookups-susceptible-to-ip-address-mismatches">susceptible to IP address mismatches</a>, so creating an open-source alternative is not easy.</p>
 
-<p>The firewall must support Geneve encapsulation, be invulnerable to SNI spoofing, fast, reliable, and not <a href="https://chasersystems.com/discriminat/faq/#are-the-out-of-band-dns-lookups-susceptible-to-ip-address-mismatches">susceptible to IP address mismatches</a>, so creating an open-source alternative to DiscrimiNAT is not easy.</p>
-
-<p><a href="https://github.com/ChaserSystems/terraform-aws-discriminat-gwlb#deployment-examples">DiscrimiNAT</a> seems superior to Palo Alto Firewall<sup id="fnref:99351" role="doc-noteref"><a href="#fn:99351" class="footnote" rel="footnote">7</a></sup> as all you do is <a href="https://chasersystems.com/docs/discriminat/aws/quick-start/#viii-configuring-a-whitelist">edit some security group descriptions to configure it</a>. You don’t need to sift through a mountain of convoluted materials or UI/UX from the 90s. However, DiscrimiNAT would need to add subaccount support for the diagram above to function to read the security groups.</p>
+<p>Regarding specific vendors, <a href="https://github.com/ChaserSystems/terraform-aws-discriminat-gwlb#deployment-examples">DiscrimiNAT</a> seems superior to Palo Alto Firewall,<sup id="fnref:99351" role="doc-noteref"><a href="#fn:99351" class="footnote" rel="footnote">7</a></sup> as all you do is <a href="https://chasersystems.com/docs/discriminat/aws/quick-start/#viii-configuring-a-whitelist">edit some security group descriptions to configure it</a>. You don’t need to sift through a mountain of convoluted materials or UI/UX from the 90s. However, DiscrimiNAT would need to add subaccount support for the diagram above to function to read the security groups.</p>
 
 <h3 id="option-4-vpc-sharing">Option 4: VPC Sharing</h3>
 
@@ -305,7 +305,7 @@
 
 <p>Then, you will need to perform an org migration in the future and should stay away from VPC Sharing for any environments you can’t easily delete.</p>
 
-<p>However, suppose you are willing to risk a production outage 😂 (Particularly if you do not use ASGs or Load Balancers, which will lose access to the subnets.) The NAT Gateway will remain functional, according to AWS.</p>
+<p>However, suppose you are willing to risk a production outage… (Particularly if you do not use ASGs or Load Balancers, which will lose access to the subnets.) The NAT Gateway will remain functional, according to AWS.</p>
 
 <p>See</p>
 
@@ -563,7 +563,7 @@
   <li>Others (Cisco, maybe?)</li>
 </ul>
 
-<p>I do not know if Aviatrix/Palo Alto/Others are <a href="https://chasersystems.com/discriminat/comparison/aws-network-firewall/">bypassable like the AWS Network Firewall is</a>, but it is something to watch out for.</p>
+<p>I do not know if Aviatrix/Palo Alto/Others are <a href="https://chasersystems.com/discriminat/comparison/aws-network-firewall/">bypassable like AWS Network Firewall is</a>, but it is something to watch out for.</p>
 
 <h3 id="what-happens-if-an-ec2-instance-in-a-private-subnet-gets-a-public-ip">What happens if an EC2 instance in a private subnet gets a public IP?</h3>
 
@@ -600,19 +600,19 @@
 <div class="footnotes" role="doc-endnotes">
   <ol>
     <li id="fn:2111" role="doc-endnote">
-      <p>Alongside deleting all the IGWs/VPCs that AWS makes by default in new accounts. <a href="#fnref:2111" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>Along with deleting all the IGWs/VPCs that AWS makes by default in new accounts. <a href="#fnref:2111" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:1350" role="doc-endnote">
-      <p>There are some companies with agents meant to be deployed on EC2s that do not offer a VPC endpoint, or charge an exorbitant fee, <a href="https://sso.tax/">perhaps</a> a <a href="https://fido.fail/">wall</a> of <a href="https://github.com/SummitRoute/imdsv2_wall_of_shame#imdsv2-wall-of-shame">shame</a> can be made. Chime <a href="https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb">mentioned</a>: <code class="language-plaintext highlighter-rouge">"Although our vendor offers PrivateLink, they have also chosen to monetize it, charging so much for access to the feature that it was not a viable option."</code> <a href="#fnref:1350" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>Some companies with agents meant to be deployed on EC2s do not offer a VPC endpoint or charge an exorbitant fee to use one; <a href="https://sso.tax/">perhaps</a> a <a href="https://fido.fail/">wall</a> of <a href="https://github.com/SummitRoute/imdsv2_wall_of_shame#imdsv2-wall-of-shame">shame</a> can be made. Chime <a href="https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb">mentioned</a>: <code class="language-plaintext highlighter-rouge">"Although our vendor offers PrivateLink, they have also chosen to monetize it, charging so much for access to the feature that it was not a viable option."</code> <a href="#fnref:1350" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:98" role="doc-endnote">
-      <p><a href="https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html#flow-logs-limitations">Flow log limitations</a> does not state “Internet-bound traffic sent to a peering connection” or “Internet-bound traffic sent to a VPC interface endpoint.” under <code class="language-plaintext highlighter-rouge">The following types of traffic are not logged:</code>. After testing I believe these are likely omitted due to not being a proper use-case. <a href="#fnref:98" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p><a href="https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html#flow-logs-limitations">Flow log limitations</a> do not state “Internet-bound traffic sent to a peering connection” or “Internet-bound traffic sent to a VPC interface endpoint.” under <code class="language-plaintext highlighter-rouge">The following types of traffic are not logged:</code>. After testing, I believe these are likely omitted due to not being a proper use-case. <a href="#fnref:98" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:985" role="doc-endnote">
       <p>A peering connection cannot be selected as a <a href="https://docs.aws.amazon.com/vpc/latest/mirroring/traffic-mirroring-targets.html">traffic mirror source or target</a>, but a network interface can. However, only an ENI belonging to an EC2 instance can be a mirror source, not an ENI belonging to an Interface endpoint. The documentation doesn’t mention this anywhere I could find. <a href="#fnref:985" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:99" role="doc-endnote">
-      <p>It has <a href="https://aws.amazon.com/network-firewall/faqs/">AWS Network Firewall</a>, which can be fooled via SNI spoofing. So it is, at best, a stepping stone to keep an inventory of your Egress traffic if you can’t get a proxy up and running short-term and are not using TLS 1.3 with encrypted client hello (ECH) or encrypted SNI (ESNI). I cringe at how <a href="https://aws.amazon.com/network-firewall/faqs/">the FAQ</a> says these are not supported, rather than a bypass of the product. Sadly this euphemism <a href="https://i.imgur.com/dPyFaNK.png">isn’t unique to AWS</a>. <a href="#fnref:99" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>It has <a href="https://aws.amazon.com/network-firewall/faqs/">AWS Network Firewall</a>, which can be fooled via SNI spoofing. So it is, at best, a stepping stone to keep an inventory of your Egress traffic if you can’t get a proxy up and running short-term and are not using TLS 1.3 with encrypted client hello (ECH) or encrypted SNI (ESNI). I cringe at how <a href="https://aws.amazon.com/network-firewall/faqs/">the FAQ</a> says these are not supported rather than a bypass of the product. Sadly, this euphemism <a href="https://i.imgur.com/dPyFaNK.png">isn’t unique to AWS</a>. <a href="#fnref:99" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:99328" role="doc-endnote">
       <p>The usual suspects <a href="https://awsteele.com/blog/2022/01/20/aws-gwlb-deep-packet-manipulation.html">Aiden Steele</a>, <a href="https://web.archive.org/web/20220129101637/https://www.sentiatechblog.com/geneveproxy-an-aws-gateway-load-balancer-reference-application">Luc van Donkersgoed</a>, and <a href="https://www.lastweekinaws.com/blog/what-i-dont-get-about-the-aws-gateway-load-balancer/">Corey Quinn</a> have written about GWLB. <a href="#fnref:99328" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
@@ -627,16 +627,16 @@
       <p>20 bucks per TB in data processing costs + ~$73.04 a month. <a href="#fnref:12202" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:220220" role="doc-endnote">
-      <p>See <a href="#what-happens-if-an-ec2-instance-in-a-private-subnet-gets-a-public-ip">the FAQ</a> for what it means to have an EC2 in a private subnet have a public IP. <a href="#fnref:220220" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>See <a href="#what-happens-if-an-ec2-instance-in-a-private-subnet-gets-a-public-ip">the FAQ</a> for what it means to have an EC2 with a public IP in a private subnet. <a href="#fnref:220220" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:996221" role="doc-endnote">
-      <p>This is Stage 1 of Scott’s <a href="https://summitroute.com/downloads/aws_security_maturity_roadmap-Summit_Route.pdf">AWS Security Maturity Roadmap</a>, for example. <a href="#fnref:996221" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>See Stage 1 of Scott’s <a href="https://summitroute.com/downloads/aws_security_maturity_roadmap-Summit_Route.pdf">AWS Security Maturity Roadmap</a>, for example. <a href="#fnref:996221" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:91426" role="doc-endnote">
       <p>According to that re:Invent session from <a href="https://twitter.com/colmmacc?lang=en">Colm MacCárthaigh</a>, and me testing <a href="https://nmap.org/book/scan-methods-ack-scan.html#:~:text=ACK%20scan%20is%20enabled%20by,both%20return%20a%20RST%20packet.">ACK scanning</a> does not work through a NAT Gateway. <a href="#fnref:91426" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:9133" role="doc-endnote">
-      <p>A <strong>3rd</strong> shout out to Aiden Steele who <a href="https://twitter.com/__steele/status/1572752577648726016">wrote about this in another context</a>, and has <a href="https://github.com/aidansteele/matconnect#matconnect">visuals / code here</a>. <a href="#fnref:9133" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>A <strong>3rd</strong> shout out to Aiden Steele, who <a href="https://twitter.com/__steele/status/1572752577648726016">wrote about this in another context</a>, and has <a href="https://github.com/aidansteele/matconnect#matconnect">visuals / code here</a>. <a href="#fnref:9133" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
