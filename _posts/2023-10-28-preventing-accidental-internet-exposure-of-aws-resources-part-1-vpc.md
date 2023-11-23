@@ -25,7 +25,8 @@ What Good Looks Like:
 
 You can implement this by banning `"ec2:CreateInternetGateway"` in subaccounts via SCP.[^2111]
 
-This works because although there are many ways an accidental Internet-exposure might happen -- for VPCs at least -- every way requires an Internet Gateway (IGW). E.g.
+It works because although there are many ways an accidental Internet-exposure might happen -- for VPCs at least -- every way requires an Internet Gateway (IGW). E.g.
+
 ![alt text](https://i.imgur.com/1e4M8z4.gif)
 
 Or:       
@@ -35,7 +36,7 @@ Or:
 
 With IGWs banned, you can hand subaccounts over to customers, and they will never be able to make public-facing load balancers or EC2 instances regardless of their IAM permissions!
 
-There is only one complication with this.
+There is only one complication.
 
 In AWS: <ins>Egress to the Internet is tightly coupled with Ingress from the Internet</ins>. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).
 
@@ -267,7 +268,7 @@ _Note: This assumes US East, 100 VPCs, and 3 AZs. If you want to change these va
 
 > Same as the above + the TGW data processing charge.
 
-> At $0.02 [per GB data processed](https://aws.amazon.com/transit-gateway/pricing/), that is only 20 bucks per TB of data!
+> At $0.02 [per GB of data processed](https://aws.amazon.com/transit-gateway/pricing/), that is only 20 bucks per TB of data!
 
 > In conclusion, for centralized egress to cost more, you’d need to send more than 303.67 TB.
 
@@ -309,25 +310,25 @@ If you are making 1 giant VPC, and sharing different subnets to each subaccount,
 
 > At $0.02 [per GB of data processed](https://aws.amazon.com/transit-gateway/pricing/), that is 20 bucks a month more per TB of data!
 
-Assuming 1 TB of data processed a month, that is $1,882.72 more a month.
+Assuming 1 TB of data is processed a month, that is $1,882.72 more.
 
 #### VPC Endpoint Costs
 
-If you wanted to use VPC endpoints across all VPCs, then you'd have to pay 50x more for them with TGW.
+If you wanted to use VPC endpoints across all VPCs, you'd have to pay 50x more for them with TGW.
 
-Those are $0.01 per hour per availability zone = $22 per month per service per VPC. So for e.g. `SQS, SNS, KMS, STS, X-Ray, ECR, ECS` across all VPCs that is $154 a month with sharing.
+Those are $0.01 per hour per availability zone = $22 per month per service per VPC. So, e.g., `SQS, SNS, KMS, STS, X-Ray, ECR, ECS` across all VPCs, is $154 a month with sharing.
 
-Vs $7,700 a month with 50 separate VPCs!
+Vs. $7,700 a month with 50 separate VPCs!
 
 ### How do I access my machines if they are all in private subnets?
 
-Use [SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html), or a similar product.
+Use [SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html) or a similar product.
 
-### How do I decide between a proxy vs. firewall for egress filtering?
+### How do I decide between a proxy vs. a firewall for egress filtering?
 
-[Chaser Systems has a good pros- and cons- bakeoff](https://chasersystems.com/blog/proxy-on-gcp-harder-better-faster-stronger/#maybe-a-proxy-less-solution) between the 2 types, but it only compares DiscrimiNAT and Squid.
+[Chaser Systems has a good "pros- and cons-" bakeoff](https://chasersystems.com/blog/proxy-on-gcp-harder-better-faster-stronger/#maybe-a-proxy-less-solution) between the 2 types, but it only compares DiscrimiNAT and Squid.
 
-Overall, there is a dearth of information around baking off specific solutions. I would love to see someone write a post around this.
+Overall, there is a dearth of information about baking off specific solutions. I would love to see someone write a post around this.
 
 The options I know about are as follows.
 
@@ -340,15 +341,15 @@ Firewalls:
 - [Chaser Systems DiscrimiNAT](https://chasersystems.com/)
 - Aviatrix
 - Palo Alto
-- Probably others (Cisco maybe?)
+- Others (Cisco, maybe?)
 
-I do not know if Aviatrix/Palo Alto etc. are [bypass-able in the same way Network Firewall is](https://chasersystems.com/discriminat/comparison/aws-network-firewall/), but it is something to watch out for.
+I do not know if Aviatrix/Palo Alto/Others are [bypassable like the AWS Network Firewall is](https://chasersystems.com/discriminat/comparison/aws-network-firewall/), but it is something to watch out for.
 
 ### What happens if an EC2 instance in a private subnet gets a public IP?
 
 You can send packets to it from the Internet. However, the EC2 can't respond over TCP.
 
-This is because incoming traffic first hits the IGW, then the EC2. Nothing else is checked assuming the NACL and security group allow it.
+Incoming traffic first hits the IGW, then the EC2. Nothing else is checked, assuming the NACL and security group allow it.
 
 As for why it cannot respond to traffic, that is more interesting!
 
@@ -358,7 +359,7 @@ For a private subnet, the route table -- which is only consulted for outgoing tr
 
 [^9133]: A **3rd** shout out to Aiden Steele who [wrote about this in another context](https://twitter.com/__steele/status/1572752577648726016), and has [visuals / code here](https://github.com/aidansteele/matconnect#matconnect).
 
-If the EC2 has e.g. UDP ports open, then an attacker can recieve responses and you have a security problem. It is worth mentioning a NACL will not help, as an Ingress deny rule blocking the Internet from hitting the EC2 will also block responses from the Internet to Egress Traffic.
+If the EC2 has UDP ports open, an attacker can receive responses, and you have a security problem. (A NACL will not help, as an Ingress deny rule blocking the Internet from hitting the EC2 will also block responses from the Internet to Egress Traffic.)
 
 ## Open Questions
 

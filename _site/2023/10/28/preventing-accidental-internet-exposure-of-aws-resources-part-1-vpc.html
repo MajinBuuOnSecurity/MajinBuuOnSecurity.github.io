@@ -107,7 +107,7 @@
       <li><a href="#why-is-vpc-privatelink-not-a-straightforward-option">Why is VPC PrivateLink not a straightforward option?</a></li>
       <li><a href="#how-much-cheaper-is-vpc-sharing-than-tgw">How much cheaper is VPC Sharing than TGW?</a></li>
       <li><a href="#how-do-i-access-my-machines-if-they-are-all-in-private-subnets">How do I access my machines if they are all in private subnets?</a></li>
-      <li><a href="#how-do-i-decide-between-a-proxy-vs-firewall-for-egress-filtering">How do I decide between a proxy vs. firewall for egress filtering?</a></li>
+      <li><a href="#how-do-i-decide-between-a-proxy-vs-a-firewall-for-egress-filtering">How do I decide between a proxy vs. a firewall for egress filtering?</a></li>
       <li><a href="#what-happens-if-an-ec2-instance-in-a-private-subnet-gets-a-public-ip">What happens if an EC2 instance in a private subnet gets a public IP?</a></li>
     </ul>
   </li>
@@ -154,15 +154,16 @@
 
 <p>You can implement this by banning <code class="language-plaintext highlighter-rouge">"ec2:CreateInternetGateway"</code> in subaccounts via SCP.<sup id="fnref:2111" role="doc-noteref"><a href="#fn:2111" class="footnote" rel="footnote">1</a></sup></p>
 
-<p>This works because although there are many ways an accidental Internet-exposure might happen – for VPCs at least – every way requires an Internet Gateway (IGW). E.g.
-<img src="https://i.imgur.com/1e4M8z4.gif" alt="alt text" /></p>
+<p>It works because although there are many ways an accidental Internet-exposure might happen – for VPCs at least – every way requires an Internet Gateway (IGW). E.g.</p>
+
+<p><img src="https://i.imgur.com/1e4M8z4.gif" alt="alt text" /></p>
 
 <p>Or:     <br />
 <img src="https://i.imgur.com/gyXZz2E.gif" alt="alt text" /></p>
 
 <p>With IGWs banned, you can hand subaccounts over to customers, and they will never be able to make public-facing load balancers or EC2 instances regardless of their IAM permissions!</p>
 
-<p>There is only one complication with this.</p>
+<p>There is only one complication.</p>
 
 <p>In AWS: <ins>Egress to the Internet is tightly coupled with Ingress from the Internet</ins>. In most cases, only the former is required (for example, downloading libraries, patches, or OS updates).</p>
 
@@ -462,7 +463,7 @@
 </blockquote>
 
 <blockquote>
-  <p>At $0.02 <a href="https://aws.amazon.com/transit-gateway/pricing/">per GB data processed</a>, that is only 20 bucks per TB of data!</p>
+  <p>At $0.02 <a href="https://aws.amazon.com/transit-gateway/pricing/">per GB of data processed</a>, that is only 20 bucks per TB of data!</p>
 </blockquote>
 
 <blockquote>
@@ -525,25 +526,25 @@
   <p>At $0.02 <a href="https://aws.amazon.com/transit-gateway/pricing/">per GB of data processed</a>, that is 20 bucks a month more per TB of data!</p>
 </blockquote>
 
-<p>Assuming 1 TB of data processed a month, that is $1,882.72 more a month.</p>
+<p>Assuming 1 TB of data is processed a month, that is $1,882.72 more.</p>
 
 <h4 id="vpc-endpoint-costs">VPC Endpoint Costs</h4>
 
-<p>If you wanted to use VPC endpoints across all VPCs, then you’d have to pay 50x more for them with TGW.</p>
+<p>If you wanted to use VPC endpoints across all VPCs, you’d have to pay 50x more for them with TGW.</p>
 
-<p>Those are $0.01 per hour per availability zone = $22 per month per service per VPC. So for e.g. <code class="language-plaintext highlighter-rouge">SQS, SNS, KMS, STS, X-Ray, ECR, ECS</code> across all VPCs that is $154 a month with sharing.</p>
+<p>Those are $0.01 per hour per availability zone = $22 per month per service per VPC. So, e.g., <code class="language-plaintext highlighter-rouge">SQS, SNS, KMS, STS, X-Ray, ECR, ECS</code> across all VPCs, is $154 a month with sharing.</p>
 
-<p>Vs $7,700 a month with 50 separate VPCs!</p>
+<p>Vs. $7,700 a month with 50 separate VPCs!</p>
 
 <h3 id="how-do-i-access-my-machines-if-they-are-all-in-private-subnets">How do I access my machines if they are all in private subnets?</h3>
 
-<p>Use <a href="https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html">SSM</a>, or a similar product.</p>
+<p>Use <a href="https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html">SSM</a> or a similar product.</p>
 
-<h3 id="how-do-i-decide-between-a-proxy-vs-firewall-for-egress-filtering">How do I decide between a proxy vs. firewall for egress filtering?</h3>
+<h3 id="how-do-i-decide-between-a-proxy-vs-a-firewall-for-egress-filtering">How do I decide between a proxy vs. a firewall for egress filtering?</h3>
 
-<p><a href="https://chasersystems.com/blog/proxy-on-gcp-harder-better-faster-stronger/#maybe-a-proxy-less-solution">Chaser Systems has a good pros- and cons- bakeoff</a> between the 2 types, but it only compares DiscrimiNAT and Squid.</p>
+<p><a href="https://chasersystems.com/blog/proxy-on-gcp-harder-better-faster-stronger/#maybe-a-proxy-less-solution">Chaser Systems has a good “pros- and cons-“ bakeoff</a> between the 2 types, but it only compares DiscrimiNAT and Squid.</p>
 
-<p>Overall, there is a dearth of information around baking off specific solutions. I would love to see someone write a post around this.</p>
+<p>Overall, there is a dearth of information about baking off specific solutions. I would love to see someone write a post around this.</p>
 
 <p>The options I know about are as follows.</p>
 
@@ -559,22 +560,22 @@
   <li><a href="https://chasersystems.com/">Chaser Systems DiscrimiNAT</a></li>
   <li>Aviatrix</li>
   <li>Palo Alto</li>
-  <li>Probably others (Cisco maybe?)</li>
+  <li>Others (Cisco, maybe?)</li>
 </ul>
 
-<p>I do not know if Aviatrix/Palo Alto etc. are <a href="https://chasersystems.com/discriminat/comparison/aws-network-firewall/">bypass-able in the same way Network Firewall is</a>, but it is something to watch out for.</p>
+<p>I do not know if Aviatrix/Palo Alto/Others are <a href="https://chasersystems.com/discriminat/comparison/aws-network-firewall/">bypassable like the AWS Network Firewall is</a>, but it is something to watch out for.</p>
 
 <h3 id="what-happens-if-an-ec2-instance-in-a-private-subnet-gets-a-public-ip">What happens if an EC2 instance in a private subnet gets a public IP?</h3>
 
 <p>You can send packets to it from the Internet. However, the EC2 can’t respond over TCP.</p>
 
-<p>This is because incoming traffic first hits the IGW, then the EC2. Nothing else is checked assuming the NACL and security group allow it.</p>
+<p>Incoming traffic first hits the IGW, then the EC2. Nothing else is checked, assuming the NACL and security group allow it.</p>
 
 <p>As for why it cannot respond to traffic, that is more interesting!</p>
 
 <p>For a private subnet, the route table – which is only consulted for outgoing traffic – will have a path to a NAT Gateway, not the IGW. So response packets will reach the NAT Gateway, <a href="https://www.youtube.com/watch?app=desktop&amp;v=UP7wDBjZ37o&amp;t=35m20s">which does connection/flow tracking</a>,<sup id="fnref:91426" role="doc-noteref"><a href="#fn:91426" class="footnote" rel="footnote">12</a></sup> and get dropped because there is no existing connection.<sup id="fnref:9133" role="doc-noteref"><a href="#fn:9133" class="footnote" rel="footnote">13</a></sup></p>
 
-<p>If the EC2 has e.g. UDP ports open, then an attacker can recieve responses and you have a security problem. It is worth mentioning a NACL will not help, as an Ingress deny rule blocking the Internet from hitting the EC2 will also block responses from the Internet to Egress Traffic.</p>
+<p>If the EC2 has UDP ports open, an attacker can receive responses, and you have a security problem. (A NACL will not help, as an Ingress deny rule blocking the Internet from hitting the EC2 will also block responses from the Internet to Egress Traffic.)</p>
 
 <h2 id="open-questions">Open Questions</h2>
 
