@@ -88,7 +88,7 @@ Sending massive amounts of data through a NAT Gateway should be avoided anyway.
 The following is a graph [generated with Python](https://gist.github.com/MajinBuuOnSecurity/361a0bac8e65432a567d5d157d2524d5). As you can see, at, e.g., 20 VPCs, you'd need to be sending over 55 TB for centralized egress to be more expensive. It only gets more worthwhile the more VPCs you add.
 ![alt text](https://i.imgur.com/aE3L89N.png)
 
-Chime is one of the edge cases AWS mentioned; Chime wrote about _petabytes_ of data and [saved seven figures getting rid of NAT Gateways](https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb). For them, TGW would break the bank. [1 PB of data transferred would require 324 VPCs to break even, 2 PB would require 646 VPCs](https://i.imgur.com/c6OeoqH.png).
+Chime ([the Fintech company](https://www.chime.com/)) is one of the edge cases AWS mentioned; Chime wrote about _petabytes_ of data and [saved seven figures getting rid of NAT Gateways](https://medium.com/life-at-chime/how-we-reduced-our-aws-bill-by-seven-figures-5144206399cb). For them, TGW would break the bank. [1 PB of data transferred would require 324 VPCs to break even, 2 PB would require 646 VPCs](https://i.imgur.com/c6OeoqH.png).
 
 See [the FAQ](#can-you-walk-through-the-cost-details-around-option-1) for a verbose example.
 
@@ -122,7 +122,7 @@ With that said, AWS does not have a primitive to perform Egress filtering,[^99] 
 
 [GWLB](https://aws.amazon.com/blogs/aws/introducing-aws-gateway-load-balancer-easy-deployment-scalability-and-high-availability-for-partner-appliances/) is a service intended to enable the deployment of virtual appliances in the form of firewalls, intrusion detection/prevention systems, and deep packet inspection systems. The appliances get sent the original traffic [encapsulated via the Geneve protocol](https://aws.amazon.com/blogs/networking-and-content-delivery/integrate-your-custom-logic-or-appliance-with-aws-gateway-load-balancer/).[^99328]
 
-[^99328]: The usual suspects [Aiden Steele](https://awsteele.com/blog/2022/01/20/aws-gwlb-deep-packet-manipulation.html), [Luc van Donkersgoed](https://web.archive.org/web/20220129101637/https://www.sentiatechblog.com/geneveproxy-an-aws-gateway-load-balancer-reference-application), and [Corey Quinn](https://www.lastweekinaws.com/blog/what-i-dont-get-about-the-aws-gateway-load-balancer/) have written about GWLB.
+[^99328]: The usual suspects [Aidan Steele](https://awsteele.com/blog/2022/01/20/aws-gwlb-deep-packet-manipulation.html), [Luc van Donkersgoed](https://web.archive.org/web/20220129101637/https://www.sentiatechblog.com/geneveproxy-an-aws-gateway-load-balancer-reference-application), and [Corey Quinn](https://www.lastweekinaws.com/blog/what-i-dont-get-about-the-aws-gateway-load-balancer/) have written about GWLB.
 
 In the [previous section](#option-2-centralized-egress-via-privatelink-or-vpc-peering-with-proxy), I wrote that PrivateLink was mostly a non-option because interface endpoint ENIs have  "[Source/destination checking](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#eni-basics)" enabled.
 
@@ -143,7 +143,7 @@ Regarding specific vendors, [DiscrimiNAT](https://github.com/ChaserSystems/terra
 
 VPC Sharing is a tempting, simple, and little-known option.[^996]
 
-[^996]: Shout out to [Aiden Steele](https://awsteele.com/blog/2022/01/02/shared-vpcs-are-underrated.html) and [Stephen Jones](https://sjramblings.io/unlock-the-hidden-power-of-vpc-sharing-in-aws) for writing their thoughts on VPC Sharing.
+[^996]: Shout out to [Aidan Steele](https://awsteele.com/blog/2022/01/02/shared-vpcs-are-underrated.html) and [Stephen Jones](https://sjramblings.io/unlock-the-hidden-power-of-vpc-sharing-in-aws) for writing their thoughts on VPC Sharing.
 
 You can simply make a VPC in your networking account and share private subnets to subaccounts.
 
@@ -162,11 +162,17 @@ Assuming you don't want to pay for TGW, you can ban actions that would explicitl
 
 These actions are [`ec2:RunInstances` with the `"ec2:AssociatePublicIpAddress` condition key set to `"true"`](https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/deny_public_ec2_ip.tf#L5-L29) and EIP-related IAM actions such as `ec2:AssociateAddress`.
 
-Then, the only problem is AWS services that treat the presence of an IGW as a 'welcome mat' to make something face the Internet; [Global Accelerator](https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html#global-accelerator) is an example. These are not a big deal because, regardless, you have to deal with the ‘hundreds of AWS services’ problem holistically; many other services don’t require an IGW to make Internet-facing resources.
+Then, the only problem is AWS services that treat the presence of an IGW as a 'welcome mat' to make something face the Internet; [Global Accelerator](https://aws.amazon.com/blogs/networking-and-content-delivery/accessing-private-application-load-balancers-and-instances-through-aws-global-accelerator/) is an example. These are not a big deal because, regardless, you have to deal with the ‘hundreds of AWS services’ problem holistically; many other services don’t require an IGW to make Internet-facing resources.
 
 I discuss addressing the risk of 'hundreds of AWS services' in the [next part](https://majinbuuonsecurity.github.io/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html) of the series.
 
-#### A Strategic Implication of VPC Sharing
+#### ENI Limitations Warning
+
+At large scale, you probably don't want to use Shared VPCs.
+
+There [are limits](https://aws.amazon.com/about-aws/whats-new/2022/10/amazon-virtual-private-cloud-vpc-now-supports-new-cloudwatch-metrics-measure-track-network-address-usage/) of 256,000 network addresses in a single VPC and 512,000 network addresses when peered within a region. As well as [HyperPlane ENI limits](https://aws.plainenglish.io/dealing-with-you-have-exceeded-the-maximum-limit-for-hyperplane-enis-for-your-account-223147e7ab64).
+
+#### Organization Migration Implications
 
 In the [Shareable AWS Resources](https://docs.aws.amazon.com/ram/latest/userguide/shareable.html#shareable-vpc) page of the AWS RAM documentation, `ec2:Subnet` is one of 7 resource types marked as
 
@@ -342,7 +348,7 @@ For a private subnet, the route table -- which is only consulted for outgoing tr
 
 [^91426]: According to that re:Invent session from [Colm MacCárthaigh](https://twitter.com/colmmacc?lang=en), and me testing [ACK scanning](https://nmap.org/book/scan-methods-ack-scan.html#:~:text=ACK%20scan%20is%20enabled%20by,both%20return%20a%20RST%20packet.) does not work through a NAT Gateway.
 
-[^9133]: A **3rd** shout out to Aiden Steele, who [wrote about this in another context](https://twitter.com/__steele/status/1572752577648726016), and has [visuals / code here](https://github.com/aidansteele/matconnect#matconnect).
+[^9133]: A **3rd** shout out to Aidan Steele, who [wrote about this in another context](https://twitter.com/__steele/status/1572752577648726016), and has [visuals / code here](https://github.com/aidansteele/matconnect#matconnect).
 
 If the EC2 has UDP ports open, an attacker can receive responses, and you have a security problem. (A NACL will not help, as an Ingress deny rule blocking the Internet from hitting the EC2 will also block responses from the Internet to Egress Traffic.)
 
