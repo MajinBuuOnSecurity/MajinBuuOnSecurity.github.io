@@ -4,7 +4,7 @@ toc: true
 title: "[Almost done] Preventing Accidental Internet-Exposure of AWS Resources (Part 1: VPC)"
 ---
 
-[Many AWS customers have suffered breaches](https://github.com/ramimac/aws-customer-security-incidents#background) due to exposing resources to the Internet by accident. This three-part series walks through different ways to mitigate that risk.
+[Many AWS customers have suffered breaches](https://github.com/ramimac/aws-customer-security-incidents#background) due to exposing resources to the [Internet by accident](https://maia.crimew.gay/posts/how-to-hack-an-airline/). This three-part series walks through different ways to mitigate that risk.
 
 ## About The Problem
 
