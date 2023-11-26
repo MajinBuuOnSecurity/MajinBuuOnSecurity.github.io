@@ -4,4 +4,4 @@ title: About
 permalink: /about/
 ---
 
-A blog about security.
+A staging environment for my blog about security.

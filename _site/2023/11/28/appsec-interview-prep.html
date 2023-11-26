@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>[WIP] WebAppSec Interviewing Notes | Majin Buu on Security</title>
+<meta name="generator" content="Jekyll v3.9.3" />
+<meta property="og:title" content="[WIP] WebAppSec Interviewing Notes" />
+<meta name="author" content="Majin Buu" />
+<meta property="og:locale" content="en" />
+<meta name="description" content="This is a post of interview preparation notes, for myself to refer in the future, ideally never though." />
+<meta property="og:description" content="This is a post of interview preparation notes, for myself to refer in the future, ideally never though." />
+<link rel="canonical" href="http://localhost:4000/2023/11/28/appsec-interview-prep.html" />
+<meta property="og:url" content="http://localhost:4000/2023/11/28/appsec-interview-prep.html" />
+<meta property="og:site_name" content="Majin Buu on Security" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2023-11-28T00:00:00-08:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="[WIP] WebAppSec Interviewing Notes" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-11-28T00:00:00-08:00","datePublished":"2023-11-28T00:00:00-08:00","description":"This is a post of interview preparation notes, for myself to refer in the future, ideally never though.","headline":"[WIP] WebAppSec Interviewing Notes","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/11/28/appsec-interview-prep.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/11/28/appsec-interview-prep.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+
+
+<!-- Google Fonts -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open%20Sans|Roboto|Roboto%20Slab|Inconsolata|Dancing%20Script|Noto%20Sans%20SC|Noto%20Sans%20TC|Noto%20Serif%20SC|Noto%20Serif%20TC|Ma%20Shan%20Zheng">
+
+<link rel="stylesheet" href="/assets/css/main.css">
+<link rel="stylesheet" href="/assets/css/skin.css">
+
+<script async src="https://use.fontawesome.com/releases/v5.0.12/js/all.js"></script>
+
+
+
+
+  </head>
+
+  <body>
+    <div class="site-container">
+      <header class="site-header">
+        <div class="wrapper">
+  <script>
+    function clickSidebarButton() {
+      const elem = document.getElementById("site-sidebar")
+      if (elem.style.display == "none" || elem.style.display == "") {
+        elem.style.display = "block";
+      } else {
+        elem.style.display = "none";
+      }
+    }
+  </script>
+  <a class="site-sidebar-button" onclick="clickSidebarButton()"><i class="far fa-user"></i>
+  </a>
+
+  <a class="site-title" rel="author" href="/">Majin Buu on Security</a>
+
+  
+    <nav class="site-nav">
+      <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+      <label for="nav-trigger" title="nav-trigger">
+        <span class="menu-icon">
+          <svg viewBox="0 0 18 15" width="18px" height="15px">
+            <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+          </svg>
+        </span>
+      </label>
+
+      <ul class="trigger">
+              <li><a class="" href="/about/">About</a></li>
+            
+              <li><a class="" href="/posts/">Posts</a></li>
+            </ul>
+    </nav>
+  
+</div>
+
+      </header>
+      
+      <div class="site-body wrapper">
+        <aside class="site-sidebar" id="site-sidebar">
+          
+            <h3 class="toc-title">Table of Contents</h3>
+<nav class="toc-nav">
+  <ul class="toc">
+  <li><a href="#summary">Summary</a></li>
+  <li><a href="#why-i-dont-like-appsec">Why I don’t Like AppSec</a></li>
+  <li><a href="#vulnerability-classes">Vulnerability Classes</a>
+    <ul>
+      <li><a href="#csp">CSP</a></li>
+      <li><a href="#cors">CORS</a></li>
+      <li><a href="#sop">SOP</a></li>
+      <li><a href="#desynchronization-attacks--request-smuggling">Desynchronization Attacks / Request Smuggling</a></li>
+    </ul>
+  </li>
+</ul>
+
+</nav>
+
+          
+        </aside>
+        <main class="site-main" id="site-main" aria-label="Content" tabindex="1">
+          <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+
+    <h1 class="post-title p-name" itemprop="name headline">[WIP] WebAppSec Interviewing Notes</h1>
+    <p class="post-meta"><time class="dt-published" datetime="2023-11-28T00:00:00-08:00" itemprop="datePublished">
+        Nov 28, 2023
+      </time></p>
+
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>This is a post of interview preparation notes, for myself to refer in the future, ideally never though.</p>
+
+<p>I haven’t specialized in WebAppSec in years, and would much rather do cloud security in my next role, but the majority of positions that are both open and pay well are AppSec. :|</p>
+
+<p>Part of the reason for this is the hiring managers are also looking for someone who can add features / contribute to the product as a software engineer in these roles.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>I’ll write one later.</p>
+
+<p>Studying this stuff is like LeetCoding: I will likely not benefit long-term from it. For any real life coding challenge I can easily determine what I don’t know, and learn it. If I am implementing mTLS auth I might look at <a href="https://github.blog/2023-08-17-mtls-when-certificate-authentication-is-done-wrong/">https://github.blog/2023-08-17-mtls-when-certificate-authentication-is-done-wrong/</a> but otherwise I won’t.</p>
+
+<p>On the other hand, I will happily read <a href="https://www.amazon.com/Designing-Data-Intensive-Applications-Reliable-Maintainable/dp/1449373321/ref=sr_1_4">DDIA</a> for the 5th time, as that knowledge will help me for life.</p>
+
+<h2 id="why-i-dont-like-appsec">Why I don’t Like AppSec</h2>
+
+<p>James Kettle is my favorite AppSec person.</p>
+
+<p>Why?</p>
+
+<p>Offensive AppSec research talks on new and novel vulnerability classes practically every year.</p>
+
+<p>That’s just on offense, however.</p>
+
+<p>Unfortunately, I don’t see much undifferentiated defensive work from AppSec teams that can benefit all other companies – which is what motivates me.</p>
+
+<p>It is just a slog of repeating the same work everyone else does:</p>
+<ul>
+  <li>Bug Bounty program</li>
+  <li>Responding to suspected ATOs</li>
+  <li>Vulnerability Management</li>
+  <li>Refactoring your codebase to use the same patterns everyone else uses (CSP)</li>
+  <li>Writing a custom version of <a href="https://github.com/magoo/AuthTables">AuthTables</a></li>
+  <li>Writing a custom fuzzer / dynamic tester for IDORs</li>
+  <li>Writing a ‘revoke unused privileges’ service</li>
+  <li>Writing SemGrep rules, CodeQL, or whatever</li>
+</ul>
+
+<p>Exceptions to this have been <a href="https://github.com/facebook/pyre-check">Pyre</a> from Facebook. And I’m not sure what else.</p>
+
+<p>That took a team of PhDs writing OCaml and only applies to typed Python codebases.</p>
+
+<h2 id="vulnerability-classes">Vulnerability Classes</h2>
+
+<p>Acronyms galour:</p>
+<ul>
+  <li>CORS</li>
+  <li>CSRF</li>
+  <li>CSP</li>
+  <li>XSS</li>
+  <li>SOP</li>
+  <li>SQLi / RCE</li>
+  <li>SSRF</li>
+</ul>
+
+<p>Some others:</p>
+<ul>
+  <li>DAST</li>
+  <li>SAST</li>
+  <li>WAFs</li>
+</ul>
+
+<p>Ones I want a refresher on:</p>
+<ul>
+  <li>OAUTH</li>
+  <li>OIDC</li>
+  <li>Request Smuggling</li>
+  <li>Desynchronization Attacks</li>
+  <li>SSTI (Server Side Template Injection)</li>
+  <li>SRI</li>
+  <li>XSS via PostMessage</li>
+</ul>
+
+<p>What I am hoping no interviewer asks me about:</p>
+<ul>
+  <li><a href="https://meltdownattack.com/">Meltdown and Spectre</a></li>
+  <li>JSONP (How does this work again?)</li>
+</ul>
+
+<p>And I’m not sure what else.</p>
+
+<h3 id="csp">CSP</h3>
+
+<p>Some resources from around ~2016:</p>
+
+<ul>
+  <li>
+    <p><a href="https://storage.googleapis.com/pub-tools-public-publication-data/pdf/45542.pdf">“CSP Is Dead, Long Live CSP! On the Insecurity of Whitelists and the Future of Content Security Policy”</a></p>
+  </li>
+  <li><a href="https://github.blog/2016-04-12-githubs-csp-journey/">“GitHub’s CSP journey”</a></li>
+  <li>
+    <p><a href="https://lcamtuf.coredump.cx/postxss/">“Postcards from the post-XSS world (2011)”</a></p>
+  </li>
+  <li><a href="https://acmccs.github.io/papers/p1709-lekiesA.pdf">“Code-Reuse Attacks for the Web: Breaking Cross-Site Scripting Mitigations via Script Gadgets”</a></li>
+</ul>
+
+<h3 id="cors">CORS</h3>
+
+<p>…</p>
+
+<h3 id="sop">SOP</h3>
+
+<p>…</p>
+
+<h3 id="desynchronization-attacks--request-smuggling">Desynchronization Attacks / Request Smuggling</h3>
+
+<p>…</p>
+
+  </div>
+
+  <footer class="post-footer">
+    
+
+    
+
+    <nav class="post-pagination" role="navigation">
+      
+        <a class="post-previous" href="/2023/11/04/writing-notes-preventing-accidental-internet-exposure-of-aws-resources.html">
+          <h4 class="post-pagination-label">Prev</h4>
+          <span class="post-pagination-title">
+            <i class="fas fa-arrow-left"></i> [Rough Draft] Write Notes: Preventing Accidental Internet-Exposure of AWS Resources
+
+          </span>
+        </a>
+      
+
+      
+    </nav>
+  </footer>
+
+  
+  
+</article>
+
+          <footer class="site-footer">
+            <div class="footer-col-wrapper">
+
+  <div class="footer-col">
+    <div class="copyright">
+      
+      
+      
+      
+      <p>Copyright © 2023 Majin Buu; All rights reserved.</p>
+      
+    </div>
+  </div>
+
+  <div class="footer-col">
+    <p>Let me know via email if you have any feedback on this site.</p>
+  </div>
+</div>
+
+          </footer>        </main>
+      </div>
+    </div>
+  </body>
+
+</html>
