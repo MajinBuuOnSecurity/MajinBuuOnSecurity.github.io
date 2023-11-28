@@ -92,10 +92,24 @@
   <li><a href="#why-i-dont-like-appsec">Why I don’t Like AppSec</a></li>
   <li><a href="#vulnerability-classes">Vulnerability Classes</a>
     <ul>
+      <li><a href="#the-very-basics">The Very Basics</a></li>
+      <li><a href="#auth-tokens">Auth Tokens</a></li>
       <li><a href="#csp">CSP</a></li>
       <li><a href="#cors">CORS</a></li>
+      <li><a href="#jsonp">JSONP</a></li>
+      <li><a href="#what-is-cross-protocol-exploitation">What is cross-protocol exploitation?</a></li>
       <li><a href="#sop">SOP</a></li>
       <li><a href="#desynchronization-attacks--request-smuggling">Desynchronization Attacks / Request Smuggling</a></li>
+    </ul>
+  </li>
+  <li><a href="#chatgpt">ChatGPT</a>
+    <ul>
+      <li><a href="#storing-session-token-information-client-side">Storing Session Token Information Client-Side:</a></li>
+      <li><a href="#storing-session-token-information-server-side">Storing Session Token Information Server-Side:</a></li>
+      <li><a href="#considerations">Considerations:</a></li>
+      <li><a href="#storing-session-tokens-in-javascript">Storing Session Tokens in JavaScript:</a></li>
+      <li><a href="#storing-session-tokens-in-cookies">Storing Session Tokens in Cookies:</a></li>
+      <li><a href="#considerations-1">Considerations:</a></li>
     </ul>
   </li>
 </ul>
@@ -148,7 +162,7 @@
   <li>Bug Bounty program</li>
   <li>Responding to suspected ATOs</li>
   <li>Vulnerability Management</li>
-  <li>Refactoring your codebase to use the same patterns everyone else uses (CSP)</li>
+  <li>Refactoring your codebase to use the same patterns and HTTP headers everyone else uses (CSP)</li>
   <li>Writing a custom version of <a href="https://github.com/magoo/AuthTables">AuthTables</a></li>
   <li>Writing a custom fuzzer / dynamic tester for IDORs</li>
   <li>Writing a ‘revoke unused privileges’ service</li>
@@ -166,10 +180,12 @@
   <li>CORS</li>
   <li>CSRF</li>
   <li>CSP</li>
-  <li>XSS</li>
+  <li>HSTS</li>
   <li>SOP</li>
   <li>SQLi / RCE</li>
   <li>SSRF</li>
+  <li>XFO</li>
+  <li>XSS</li>
 </ul>
 
 <p>Some others:</p>
@@ -181,6 +197,7 @@
 
 <p>Ones I want a refresher on:</p>
 <ul>
+  <li>CT</li>
   <li>OAUTH</li>
   <li>OIDC</li>
   <li>Request Smuggling</li>
@@ -194,9 +211,41 @@
 <ul>
   <li><a href="https://meltdownattack.com/">Meltdown and Spectre</a></li>
   <li>JSONP (How does this work again?)</li>
+  <li>Esoteric trivia from <a href="https://www.amazon.com/Bulletproof-TLS-PKI-Second-Understanding/dp/1907117091/ref=sr_1_1">Ivan Ristic’s book</a></li>
 </ul>
 
 <p>And I’m not sure what else.</p>
+
+<h3 id="the-very-basics">The Very Basics</h3>
+
+<p>dguido NYU Poly course from Fall 2010:</p>
+<ul>
+  <li><a href="https://vimeo.com/21424320">Web Hacking 1</a></li>
+  <li><a href="https://vimeo.com/32550671">Web Hacking 2</a></li>
+</ul>
+
+<p>Others:</p>
+<ul>
+  <li><a href="https://trailofbits.github.io/ctf/web/exploits.html">https://trailofbits.github.io/ctf/web/exploits.html</a></li>
+  <li><a href="https://www.google.com/search?q=filetype%3Apdf+web+hackers+handbook&amp;oq=filetype%3Apdf+web+hackers+handbook">WAHH</a></li>
+  <li><a href="https://www.google.com/search?q=filetype%3Apdf+browser+hackers+handbook">BHH</a></li>
+</ul>
+
+<h3 id="auth-tokens">Auth Tokens</h3>
+
+<p>S2S</p>
+<ul>
+  <li>Ptacek post, Latacora, 2018 <a href="https://www.latacora.com/blog/2018/06/12/a-childs-garden/">https://www.latacora.com/blog/2018/06/12/a-childs-garden/</a></li>
+</ul>
+
+<p>Favorite quotes:</p>
+<blockquote>
+  <p>Most API keys are bearer tokens. OAuth is an elaborate scheme for generating and relaying bearer tokens. SAML assertions are delivered in bearer tokens.</p>
+</blockquote>
+
+<blockquote>
+  <p>From an application security perspective, “do the simplest thing you can get away with” has a lot of merit.</p>
+</blockquote>
 
 <h3 id="csp">CSP</h3>
 
@@ -215,15 +264,151 @@
 
 <h3 id="cors">CORS</h3>
 
-<p>…</p>
+<p>Popular request headers:</p>
+
+<ul>
+  <li>Origin</li>
+</ul>
+
+<p>Popular response headers:</p>
+<ul>
+  <li>Access-Control-Allow-Origin</li>
+  <li>Access-Control-Allow-Credentials</li>
+</ul>
+
+<p>Rarer are these:</p>
+<ul>
+  <li>Access-Control-Request-Method / Access-Control-Allow-Methods</li>
+  <li>Access-Control-Request-Headers / Access-Control-Allow-Headers</li>
+</ul>
+
+<h3 id="jsonp">JSONP</h3>
+
+<blockquote>
+  <p>JSONP payloads consist of an internal JSON payload wrapped by a pre-defined function call. When the script resource is loaded by the browser, the designated callback function will be invoked to process the wrapped JSON payload.</p>
+</blockquote>
+
+<h3 id="what-is-cross-protocol-exploitation">What is cross-protocol exploitation?</h3>
+
+<p>Hmm</p>
 
 <h3 id="sop">SOP</h3>
+
+<p>XSS is heavily related.</p>
+
+<p>Origin is a tuple of (protocol, hostname, port)</p>
+
+<p><a href="https://en.wikipedia.org/wiki/Same-origin_policy">https://en.wikipedia.org/wiki/Same-origin_policy</a></p>
+
+<p>“X.com can no way interact with any page elements on Y.com”</p>
+
+<p>“JavaScript executing in the context of 1 document should not be allowed to access the context of another document.”</p>
+
+<p>“SOP check happens in the browser.”</p>
 
 <p>…</p>
 
 <h3 id="desynchronization-attacks--request-smuggling">Desynchronization Attacks / Request Smuggling</h3>
 
 <p>…</p>
+
+<h2 id="chatgpt">ChatGPT</h2>
+
+<p>Storing a lot of session token information client-side versus server-side involves tradeoffs regarding security, performance, and scalability:</p>
+
+<h3 id="storing-session-token-information-client-side">Storing Session Token Information Client-Side:</h3>
+
+<h4 id="pros">Pros:</h4>
+<ol>
+  <li><strong>Reduced Server Load:</strong> Offloading data storage to the client-side reduces server-side processing and storage requirements.</li>
+  <li><strong>Faster Access:</strong> Client-side storage (e.g., cookies, local storage) allows for quicker access to session-related data without frequent server requests.</li>
+  <li><strong>Enhanced Responsiveness:</strong> Clients can retrieve and manipulate session information locally, leading to faster user interactions.</li>
+</ol>
+
+<h4 id="cons">Cons:</h4>
+<ol>
+  <li><strong>Security Risks:</strong> Client-side storage is vulnerable to various attacks (XSS, data tampering) if not properly secured, exposing sensitive session data.</li>
+  <li><strong>Data Integrity Concerns:</strong> Users might manipulate or tamper with client-side data, compromising the integrity of the session.</li>
+  <li><strong>Storage Limits:</strong> Limited storage capacity (e.g., browser storage limits) might restrict the amount of data that can be stored client-side.</li>
+</ol>
+
+<h3 id="storing-session-token-information-server-side">Storing Session Token Information Server-Side:</h3>
+
+<h4 id="pros-1">Pros:</h4>
+<ol>
+  <li><strong>Enhanced Security:</strong> Centralized server-side storage reduces the risk of data exposure and manipulation compared to client-side storage.</li>
+  <li><strong>Better Control:</strong> Allows for stricter access controls, audit trails, and encryption measures to protect session data.</li>
+  <li><strong>Scalability:</strong> Easier to scale server-side storage solutions to accommodate larger amounts of session data.</li>
+</ol>
+
+<h4 id="cons-1">Cons:</h4>
+<ol>
+  <li><strong>Increased Server Load:</strong> Storing and managing session data server-side can increase server load, especially with a large number of active sessions.</li>
+  <li><strong>Network Overhead:</strong> Frequent client-server communication for session data retrieval might introduce network latency and affect performance.</li>
+  <li><strong>Potential Bottlenecks:</strong> Heavy reliance on server-side storage might create performance bottlenecks, particularly in distributed systems or under high load.</li>
+</ol>
+
+<h3 id="considerations">Considerations:</h3>
+
+<ul>
+  <li><strong>Sensitive Data:</strong> If the session data contains highly sensitive information, storing it server-side is often the safer choice.</li>
+  <li><strong>Performance Requirements:</strong> If responsiveness and speed are critical, selectively storing necessary session data client-side can enhance user experience.</li>
+  <li><strong>Scalability Needs:</strong> Consider the scalability of server-side storage solutions to accommodate potential growth in session data volume.</li>
+</ul>
+
+<p>In practice, a hybrid approach is often used, storing essential session details (such as tokens, identifiers) on the client-side for quick access, while storing more sensitive or extensive session data, logs, or user-related details on the server-side for security and scalability. This approach balances performance, security, and scalability concerns effectively.</p>
+
+<p>Storing session tokens in JavaScript versus cookies involves different tradeoffs related to security, accessibility, and ease of implementation:</p>
+
+<h3 id="storing-session-tokens-in-javascript">Storing Session Tokens in JavaScript:</h3>
+
+<h4 id="pros-2">Pros:</h4>
+<ol>
+  <li><strong>Control:</strong> Gives more control to developers on how and where the token is stored.</li>
+  <li><strong>Flexibility:</strong> Can use various storage mechanisms like localStorage, sessionStorage, or custom methods.</li>
+  <li><strong>Reduced Vulnerability:</strong> Tokens stored in JavaScript might be less susceptible to certain types of attacks like CSRF (Cross-Site Request Forgery).</li>
+</ol>
+
+<h4 id="cons-2">Cons:</h4>
+<ol>
+  <li><strong>Security Risks:</strong> Vulnerable to XSS (Cross-Site Scripting) attacks; if an attacker gains access to JavaScript, they can easily steal the token.</li>
+  <li><strong>Limited Accessibility:</strong> Might not be accessible across different tabs or windows due to the scope of JavaScript storage.</li>
+  <li><strong>Complexity:</strong> Requires extra effort to manage and secure the token properly.</li>
+</ol>
+
+<h3 id="storing-session-tokens-in-cookies">Storing Session Tokens in Cookies:</h3>
+
+<h4 id="pros-3">Pros:</h4>
+<ol>
+  <li><strong>Automatic Inclusion:</strong> Cookies are automatically sent with every HTTP request to the associated domain, simplifying server-side implementation.</li>
+  <li><strong>Cross-Tab Accessibility:</strong> Cookies are accessible across tabs and windows, enhancing user experience.</li>
+  <li><strong>Security (with precautions):</strong> Can be made secure by using HTTPOnly and Secure flags to prevent access via JavaScript and restrict to secure connections only.</li>
+</ol>
+
+<h4 id="cons-3">Cons:</h4>
+<ol>
+  <li><strong>Vulnerability to CSRF:</strong> Cookies are vulnerable to CSRF attacks if not properly protected with measures like CSRF tokens.</li>
+  <li><strong>Size Limitations:</strong> Limited in size (usually around 4KB), restricting the amount of data that can be stored.</li>
+  <li><strong>Privacy Concerns:</strong> Users might disable or clear cookies, affecting session persistence and causing inconvenience.</li>
+</ol>
+
+<h3 id="considerations-1">Considerations:</h3>
+
+<ul>
+  <li><strong>Security Priority:</strong> If security is paramount, cookies with appropriate flags (HTTPOnly, Secure) might be more suitable.</li>
+  <li><strong>Usability and Access:</strong> If you need cross-tab accessibility and ease of use, cookies are more convenient.</li>
+  <li><strong>Development Complexity:</strong> If you have specific storage requirements or want more control, JavaScript-based storage might be preferable.</li>
+</ul>
+
+<p>In practice, a combination of both methods might be used, leveraging cookies for the session token and JavaScript for additional client-side data storage if needed, considering the tradeoffs to strike a balance between security, accessibility, and usability.</p>
+
+<p>In other words,</p>
+
+<blockquote>
+  <p>It is often said that cookies are safer against XSS (with the HttpOnly flag set), but using cookies makes your app more vulnerable to CSRF. Tokens within JS, on the other hand, are easier to exfiltrate through XSS but CSRF therefore becomes much less of a problem.</p>
+</blockquote>
+
+<p>So you can use both. In a similar same way that a Pepper is used.</p>
 
   </div>
 
