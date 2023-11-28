@@ -77,6 +77,7 @@ What I am hoping no interviewer asks me about:
 - [Meltdown and Spectre](https://meltdownattack.com/)
 - JSONP (How does this work again?)
 - Esoteric trivia from [Ivan Ristic's book](https://www.amazon.com/Bulletproof-TLS-PKI-Second-Understanding/dp/1907117091/ref=sr_1_1)
+- What does the sandbox attribute do for iFrames?
 
 And I'm not sure what else.
 
