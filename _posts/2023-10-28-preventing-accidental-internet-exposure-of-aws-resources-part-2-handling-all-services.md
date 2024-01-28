@@ -10,20 +10,20 @@ There are hundreds of AWS services -- nobody knows them all -- so what do you do
 
 ## Handling All Those Services
 
-Since each AWS service has its own nuances and possible security problems. The primary way to mitigate this risk is to [implement an allowlist](#implementing-the-allowlist) strategy for IAM services, which limits the amount of AWS services you need to know in-depth.
+Since each AWS service has its own nuances and possible security problems. The primary way to mitigate this risk is to [implement an allowlist](#implementing-the-allowlist) strategy for services, which limits the amount of services you need to know in-depth.
 
-Once you have this allowlist, you can cross-refence each service with the [Mitigations Per Service](#mitigations-per-service) section and ensure you have the proper mitigations in place.
+Once you have this allowlist, you can cross-reference each service with the [Mitigations Per Service](#mitigations-per-service) matrix below, and ensure you have the proper mitigations in place.
 
-### Implementing the Allowlist
+## Implementing the Allowlist
 
 When a customer requests an AWS account[^1424], the fill-out form should ask them a set of questions including, "Which AWS services and regions will you be using?"
 
 [^1424]: For sandbox accounts, this may not be realistic, so you may need to manually maintain a deny list of dangerous services. Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, [nuking](https://github.com/rebuy-de/aws-nuke)) regularly and only have public data in them.
 
-This can get fed into whatever your account creation automation you have setup. As a concrete example, let's say we end up translating to e.g. [Terraform local variables](https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/main/subaccounts/smoky-production/configuration_baseline/locals.tf):
+This can get fed into whatever your account creation automation you have. As a concrete example, let's say we end up translating to e.g. [Terraform local variables](https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/main/subaccounts/smoky-production/configuration_baseline/locals.tf):
 ```go
 locals {
-  services = ["dynamodb", "ec2", "s3"]
+  services = ["dynamodb", "ec2", "lambda," "s3"]
   regions = ["us-east-2"]
 }
 ```
@@ -32,12 +32,12 @@ Which will further be passed into a [configuration module](https://github.com/Ma
 
 ### Service-Specific Mitigations
 
-Rather than simply giving the subaccount admin IAM role `"ec2:*"` and calling it a day, you should go further and ask service-specific questions:
-- "Do you need publicly accessible EC2 resources? If so, please explain why."
-- "Can you use our Terraform module for launching EC2 instances? If not, please explain why."
-- "Do you need to launch EC2 instances with public AMIs?"
+Rather than simply giving the subaccount [admin IAM role](https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/df5a1021fb1ff6975d394ade7081050472f0e8ff/automation/create_aws_account/organizations.py#L23) `"lambda:*"` and calling it a day, you should go further and ask service-specific questions:
+- "Will all Lambda functions be deployed in one of our VPCs?"
+- "Will all Lambda functions require [AWS_IAM authentication](https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html#urls-auth-iam)?"
+- "Can you use our [company-specific] Terraform module for creating these Lambda functions?"
 
-Which can, if for some reason the customer needs to use public AMIs, end up getting translated to:
+Which can, if for some reason the customer needs to have publicly accessible Lambda function URLs, end up getting translated to:
 ```go
 module "project_x_account" {
   source = "../../modules/subaccounts/scps"
@@ -45,25 +45,28 @@ module "project_x_account" {
   services = local.services
   regions = local.regions
 
-  deny_public_ami_ec2 = false
+  deny_auth_type_not_iam_lambda = false
 }
 ```
 
 
-The `deny_public_ami_ec2` argument, will turn-off a mitigation that is on by default, [via the module](https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/df5a1021fb1ff6975d394ade7081050472f0e8ff/modules/subaccount_baselines/scps/AccountSCP.tf#L23-L65):
+The `deny_auth_type_not_iam_lambda` argument, will turn-off a mitigation that is on by default, [via the module](https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/df5a1021fb1ff6975d394ade7081050472f0e8ff/modules/subaccount_baselines/scps/AccountSCP.tf#L23-L65):
 ```go
     {
-      include = var.deny_public_ami_ec2,
+      include = var.deny_auth_type_not_iam_lambda,
       effect = "Deny"
-      actions = ["ec2:RunInstances"]
-      resources = ["arn:aws:ec2:*::image/*"]
+      actions = [
+        "lambda:CreateFunctionUrlConfig",
+        "lambda:UpdateFunctionUrlConfig",
+      ]
+      resources = ["arn:aws:lambda:*:*:function/*"]
       conditions = [
         {
-          test     = "Bool"
-          variable = "ec2:Public"
+          test     = "StringNotEquals"
+          variable = "lambda:FunctionUrlAuthType"
 
           values = [
-            "true",
+            "AWS_IAM",
           ]
         },
       ]
@@ -72,33 +75,54 @@ The `deny_public_ami_ec2` argument, will turn-off a mitigation that is on by def
 
 ## Mitigation Types
 
-There are 4 mitigation types, which may or may not be relevant to a particular service. 
+For preventing public network access, there are 4 possible account-wide mitigation types per service:
 
-It is important to note we are at the mercy of AWS as to which mitigations are available. Ideally every service had a condition key we could block and then we would have solid [security invariants](https://www.chrisfarris.com/post/philosphy-of-prevention/). Unfortunately this is almost never the case.
+- Don't have public subnets
+- Don't have an Internet Gateway (IGW)
+- Use a condition key
+- Use a condition key in combination with resource type limits
+
+It is important to note <ins>we are at the mercy of AWS as to which mitigations are available/applicable for each specific service.</ins>
+
+Ideally, every service with resources created outside of a VPC would have a condition key (similar to `lambda:FunctionUrlAuthType` above) we could block and then we would have solid [security invariants](https://www.chrisfarris.com/post/philosphy-of-prevention/). Unfortunately, this is not the case for most services.
 
 #### No Public Subnets
 
-As covered in Part 1, as long as there are no public subnets in an account, the service cannot have Internet-facing assets.
+As long as there are no public subnets in an account, the service cannot have Internet-facing resources.
 
-See [ELB v1 / v2](#elb-v1--v2) for an example.
+[ELB v1 / v2](#elb-v1--v2) is an example.
 
-#### No IGW
+#### No IGWs
 
-As covered in Part 1, as long as there are no IGWs in an account, the service cannot have Internet-facing assets.
+As long as there are no IGWs in an account, the service cannot have Internet-facing resources.
 
-See [Global Accelerator](#global-accelerator) for an example.
+[Global Accelerator](#global-accelerator) is an example.
 
 #### Condition Key
 
 There is a specific IAM condition key, that under some condition, can be blocked.
 
-See [Lambda](#lambda) for an example.
+[Lambda](#lambda) is an example.
 
 #### Condition Key + Resource Type Limits
 
 Both a condition key needs to be used, as well as limiting the types of resources to which that condition key is applied.
 
-See [API Gateway](#api-gateway) for an example.
+[API Gateway](#api-gateway) is an example.
+
+## No-Mitigations-Available Services
+
+The 4 above mitigation types are completely useless for preventing public network access.
+
+[EKS](#eks) is an example.
+
+### The Solution for Services with No Mitigations
+
+If your customers need `eks:CreateCluster`, then you need to rely on a trusted IAM role.
+
+(As well as alerting, but that is reactive.)
+
+
 
 ## Mitigations Per Service
 
@@ -110,7 +134,7 @@ CloudFront                                          | ?                 | ?     
 <span style="color:green">DynamoDB</span>           | N/A               | N/A     | N/A           | N/A                                  | No
 ECS                                                 | ?                 | ?       | ?             | ?                                    | ?
 <span style="color:IndianRed">EC2</span>            | Yes-ish           | Yes     | Partial       | N/A                                  | No
-<span style="color:Maroon">EKS</span>               | Partial           | Partial | No            | N/A                                  | Yes
+<span style="color:Maroon">**EKS**</span>               | Partial           | Partial | No            | N/A                                  | <span style="color:Maroon">**Yes**</span> 
 <span style="color:green">ElasticCache</span>       | N/A               | N/A     | N/A       | N/A                                  | No
 <span style="color:IndianRed">ELB v1 / v2</span>    | Yes               | Yes     | No            | N/A                                  | No
 EMR                                                 | ?                 | ?       | ?             | ?                                    | ?
@@ -162,7 +186,7 @@ Note: This takes the cake for weirdest and most error prone IAM example I have e
 
 ### ELB v1 / v2
 
-Load-balancers with scheme "internet-facing" can only exists in public subnets, this is enforced at creation time.
+Load-balancers with scheme "internet-facing" can only exist in public subnets, this is enforced at creation time.
 
 TODO: What would happen if I changed the route table?
 
@@ -255,6 +279,5 @@ As further evidence, [Instructions for turning a private cluster public](https:/
 In only the [ModifyCluster](https://docs.aws.amazon.com/redshift/latest/APIReference/API_ModifyCluster.html) documentation it states: "Only clusters in VPCs can be set to be publicly available." The [CreateCluster](https://docs.aws.amazon.com/redshift/latest/APIReference/API_CreateCluster.html) documentation does not state this.
 
 [No condition keys](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonredshift.html#amazonredshift-policy-keys) exist for e.g. `Encrypted` or `ElasticIP` or `PubliclyAccessible`.
-
 
 ## Footnotes

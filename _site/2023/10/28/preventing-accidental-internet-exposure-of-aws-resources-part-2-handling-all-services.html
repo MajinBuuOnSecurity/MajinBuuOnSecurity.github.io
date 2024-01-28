@@ -88,13 +88,18 @@
             <h3 class="toc-title">Table of Contents</h3>
 <nav class="toc-nav">
   <ul class="toc">
-  <li><a href="#handling-all-those-services">Handling All Those Services</a>
+  <li><a href="#handling-all-those-services">Handling All Those Services</a></li>
+  <li><a href="#implementing-the-allowlist">Implementing the Allowlist</a>
     <ul>
-      <li><a href="#implementing-the-allowlist">Implementing the Allowlist</a></li>
       <li><a href="#service-specific-mitigations">Service-Specific Mitigations</a></li>
     </ul>
   </li>
   <li><a href="#mitigation-types">Mitigation Types</a></li>
+  <li><a href="#no-mitigations-available-services">No-Mitigations-Available Services</a>
+    <ul>
+      <li><a href="#the-solution-for-services-with-no-mitigations">The Solution for Services with No Mitigations</a></li>
+    </ul>
+  </li>
   <li><a href="#mitigations-per-service">Mitigations Per Service</a>
     <ul>
       <li><a href="#api-gateway">API Gateway</a></li>
@@ -138,17 +143,17 @@
 
 <h2 id="handling-all-those-services">Handling All Those Services</h2>
 
-<p>Since each AWS service has its own nuances and possible security problems. The primary way to mitigate this risk is to <a href="#implementing-the-allowlist">implement an allowlist</a> strategy for IAM services, which limits the amount of AWS services you need to know in-depth.</p>
+<p>Since each AWS service has its own nuances and possible security problems. The primary way to mitigate this risk is to <a href="#implementing-the-allowlist">implement an allowlist</a> strategy for services, which limits the amount of services you need to know in-depth.</p>
 
-<p>Once you have this allowlist, you can cross-refence each service with the <a href="#mitigations-per-service">Mitigations Per Service</a> section and ensure you have the proper mitigations in place.</p>
+<p>Once you have this allowlist, you can cross-reference each service with the <a href="#mitigations-per-service">Mitigations Per Service</a> matrix below, and ensure you have the proper mitigations in place.</p>
 
-<h3 id="implementing-the-allowlist">Implementing the Allowlist</h3>
+<h2 id="implementing-the-allowlist">Implementing the Allowlist</h2>
 
 <p>When a customer requests an AWS account<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">1</a></sup>, the fill-out form should ask them a set of questions including, “Which AWS services and regions will you be using?”</p>
 
-<p>This can get fed into whatever your account creation automation you have setup. As a concrete example, let’s say we end up translating to e.g. <a href="https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/main/subaccounts/smoky-production/configuration_baseline/locals.tf">Terraform local variables</a>:</p>
+<p>This can get fed into whatever your account creation automation you have. As a concrete example, let’s say we end up translating to e.g. <a href="https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/main/subaccounts/smoky-production/configuration_baseline/locals.tf">Terraform local variables</a>:</p>
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">locals</span> <span class="p">{</span>
-  <span class="n">services</span> <span class="o">=</span> <span class="p">[</span><span class="s">"dynamodb"</span><span class="p">,</span> <span class="s">"ec2"</span><span class="p">,</span> <span class="s">"s3"</span><span class="p">]</span>
+  <span class="n">services</span> <span class="o">=</span> <span class="p">[</span><span class="s">"dynamodb"</span><span class="p">,</span> <span class="s">"ec2"</span><span class="p">,</span> <span class="s">"lambda,"</span> <span class="s">"s3"</span><span class="p">]</span>
   <span class="n">regions</span> <span class="o">=</span> <span class="p">[</span><span class="s">"us-east-2"</span><span class="p">]</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -157,37 +162,40 @@
 
 <h3 id="service-specific-mitigations">Service-Specific Mitigations</h3>
 
-<p>Rather than simply giving the subaccount admin IAM role <code class="language-plaintext highlighter-rouge">"ec2:*"</code> and calling it a day, you should go further and ask service-specific questions:</p>
+<p>Rather than simply giving the subaccount <a href="https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/df5a1021fb1ff6975d394ade7081050472f0e8ff/automation/create_aws_account/organizations.py#L23">admin IAM role</a> <code class="language-plaintext highlighter-rouge">"lambda:*"</code> and calling it a day, you should go further and ask service-specific questions:</p>
 <ul>
-  <li>“Do you need publicly accessible EC2 resources? If so, please explain why.”</li>
-  <li>“Can you use our Terraform module for launching EC2 instances? If not, please explain why.”</li>
-  <li>“Do you need to launch EC2 instances with public AMIs?”</li>
+  <li>“Will all Lambda functions be deployed in one of our VPCs?”</li>
+  <li>“Will all Lambda functions require <a href="https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html#urls-auth-iam">AWS_IAM authentication</a>?”</li>
+  <li>“Can you use our [company-specific] Terraform module for creating these Lambda functions?”</li>
 </ul>
 
-<p>Which can, if for some reason the customer needs to use public AMIs, end up getting translated to:</p>
+<p>Which can, if for some reason the customer needs to have publicly accessible Lambda function URLs, end up getting translated to:</p>
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">module</span> <span class="s">"project_x_account"</span> <span class="p">{</span>
   <span class="n">source</span> <span class="o">=</span> <span class="s">"../../modules/subaccounts/scps"</span>
 
   <span class="n">services</span> <span class="o">=</span> <span class="n">local</span><span class="o">.</span><span class="n">services</span>
   <span class="n">regions</span> <span class="o">=</span> <span class="n">local</span><span class="o">.</span><span class="n">regions</span>
 
-  <span class="n">deny_public_ami_ec2</span> <span class="o">=</span> <span class="no">false</span>
+  <span class="n">deny_auth_type_not_iam_lambda</span> <span class="o">=</span> <span class="no">false</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>The <code class="language-plaintext highlighter-rouge">deny_public_ami_ec2</code> argument, will turn-off a mitigation that is on by default, <a href="https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/df5a1021fb1ff6975d394ade7081050472f0e8ff/modules/subaccount_baselines/scps/AccountSCP.tf#L23-L65">via the module</a>:</p>
+<p>The <code class="language-plaintext highlighter-rouge">deny_auth_type_not_iam_lambda</code> argument, will turn-off a mitigation that is on by default, <a href="https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/df5a1021fb1ff6975d394ade7081050472f0e8ff/modules/subaccount_baselines/scps/AccountSCP.tf#L23-L65">via the module</a>:</p>
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">{</span>
-      <span class="n">include</span> <span class="o">=</span> <span class="k">var</span><span class="o">.</span><span class="n">deny_public_ami_ec2</span><span class="p">,</span>
+      <span class="n">include</span> <span class="o">=</span> <span class="k">var</span><span class="o">.</span><span class="n">deny_auth_type_not_iam_lambda</span><span class="p">,</span>
       <span class="n">effect</span> <span class="o">=</span> <span class="s">"Deny"</span>
-      <span class="n">actions</span> <span class="o">=</span> <span class="p">[</span><span class="s">"ec2:RunInstances"</span><span class="p">]</span>
-      <span class="n">resources</span> <span class="o">=</span> <span class="p">[</span><span class="s">"arn:aws:ec2:*::image/*"</span><span class="p">]</span>
+      <span class="n">actions</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s">"lambda:CreateFunctionUrlConfig"</span><span class="p">,</span>
+        <span class="s">"lambda:UpdateFunctionUrlConfig"</span><span class="p">,</span>
+      <span class="p">]</span>
+      <span class="n">resources</span> <span class="o">=</span> <span class="p">[</span><span class="s">"arn:aws:lambda:*:*:function/*"</span><span class="p">]</span>
       <span class="n">conditions</span> <span class="o">=</span> <span class="p">[</span>
         <span class="p">{</span>
-          <span class="n">test</span>     <span class="o">=</span> <span class="s">"Bool"</span>
-          <span class="n">variable</span> <span class="o">=</span> <span class="s">"ec2:Public"</span>
+          <span class="n">test</span>     <span class="o">=</span> <span class="s">"StringNotEquals"</span>
+          <span class="n">variable</span> <span class="o">=</span> <span class="s">"lambda:FunctionUrlAuthType"</span>
 
           <span class="n">values</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="s">"true"</span><span class="p">,</span>
+            <span class="s">"AWS_IAM"</span><span class="p">,</span>
           <span class="p">]</span>
         <span class="p">},</span>
       <span class="p">]</span>
@@ -196,33 +204,54 @@
 
 <h2 id="mitigation-types">Mitigation Types</h2>
 
-<p>There are 4 mitigation types, which may or may not be relevant to a particular service.</p>
+<p>For preventing public network access, there are 4 possible account-wide mitigation types per service:</p>
 
-<p>It is important to note we are at the mercy of AWS as to which mitigations are available. Ideally every service had a condition key we could block and then we would have solid <a href="https://www.chrisfarris.com/post/philosphy-of-prevention/">security invariants</a>. Unfortunately this is almost never the case.</p>
+<ul>
+  <li>Don’t have public subnets</li>
+  <li>Don’t have an Internet Gateway (IGW)</li>
+  <li>Use a condition key</li>
+  <li>Use a condition key in combination with resource type limits</li>
+</ul>
+
+<p>It is important to note <ins>we are at the mercy of AWS as to which mitigations are available/applicable for each specific service.</ins></p>
+
+<p>Ideally, every service with resources created outside of a VPC would have a condition key (similar to <code class="language-plaintext highlighter-rouge">lambda:FunctionUrlAuthType</code> above) we could block and then we would have solid <a href="https://www.chrisfarris.com/post/philosphy-of-prevention/">security invariants</a>. Unfortunately, this is not the case for most services.</p>
 
 <h4 id="no-public-subnets">No Public Subnets</h4>
 
-<p>As covered in Part 1, as long as there are no public subnets in an account, the service cannot have Internet-facing assets.</p>
+<p>As long as there are no public subnets in an account, the service cannot have Internet-facing resources.</p>
 
-<p>See <a href="#elb-v1--v2">ELB v1 / v2</a> for an example.</p>
+<p><a href="#elb-v1--v2">ELB v1 / v2</a> is an example.</p>
 
-<h4 id="no-igw">No IGW</h4>
+<h4 id="no-igws">No IGWs</h4>
 
-<p>As covered in Part 1, as long as there are no IGWs in an account, the service cannot have Internet-facing assets.</p>
+<p>As long as there are no IGWs in an account, the service cannot have Internet-facing resources.</p>
 
-<p>See <a href="#global-accelerator">Global Accelerator</a> for an example.</p>
+<p><a href="#global-accelerator">Global Accelerator</a> is an example.</p>
 
 <h4 id="condition-key">Condition Key</h4>
 
 <p>There is a specific IAM condition key, that under some condition, can be blocked.</p>
 
-<p>See <a href="#lambda">Lambda</a> for an example.</p>
+<p><a href="#lambda">Lambda</a> is an example.</p>
 
 <h4 id="condition-key--resource-type-limits">Condition Key + Resource Type Limits</h4>
 
 <p>Both a condition key needs to be used, as well as limiting the types of resources to which that condition key is applied.</p>
 
-<p>See <a href="#api-gateway">API Gateway</a> for an example.</p>
+<p><a href="#api-gateway">API Gateway</a> is an example.</p>
+
+<h2 id="no-mitigations-available-services">No-Mitigations-Available Services</h2>
+
+<p>The 4 above mitigation types are completely useless for preventing public network access.</p>
+
+<p><a href="#eks">EKS</a> is an example.</p>
+
+<h3 id="the-solution-for-services-with-no-mitigations">The Solution for Services with No Mitigations</h3>
+
+<p>If your customers need <code class="language-plaintext highlighter-rouge">eks:CreateCluster</code>, then you need to rely on a trusted IAM role.</p>
+
+<p>(As well as alerting, but that is reactive.)</p>
 
 <h2 id="mitigations-per-service">Mitigations Per Service</h2>
 
@@ -287,12 +316,12 @@
       <td>No</td>
     </tr>
     <tr>
-      <td><span style="color:Maroon">EKS</span></td>
+      <td><span style="color:Maroon"><strong>EKS</strong></span></td>
       <td>Partial</td>
       <td>Partial</td>
       <td>No</td>
       <td>N/A</td>
-      <td>Yes</td>
+      <td><span style="color:Maroon"><strong>Yes</strong></span></td>
     </tr>
     <tr>
       <td><span style="color:green">ElasticCache</span></td>
@@ -432,7 +461,7 @@
 
 <h3 id="elb-v1--v2">ELB v1 / v2</h3>
 
-<p>Load-balancers with scheme “internet-facing” can only exists in public subnets, this is enforced at creation time.</p>
+<p>Load-balancers with scheme “internet-facing” can only exist in public subnets, this is enforced at creation time.</p>
 
 <p>TODO: What would happen if I changed the route table?</p>
 
