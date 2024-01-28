@@ -112,7 +112,7 @@ Both a condition key needs to be used, as well as limiting the types of resource
 
 ## No-Mitigations-Available Services
 
-The 4 above mitigation types are completely useless for preventing public network access.
+These are services where the 4 above mitigation types are completely useless for preventing public network access.
 
 [EKS](#eks) is an example.
 
