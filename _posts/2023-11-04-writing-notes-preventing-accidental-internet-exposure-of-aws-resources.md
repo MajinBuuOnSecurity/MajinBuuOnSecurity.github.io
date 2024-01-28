@@ -153,3 +153,9 @@ Pros for B:
 - The next section is more granular
 - The first section isn't soley About The Problem IMO.
 - More upfront
+
+
+## Other Notes
+
+I started to write `Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Handling All Services)` however, I need to first explain a service-allowlist, so I stopped and wrote a self-contained post about new account baselines.
+

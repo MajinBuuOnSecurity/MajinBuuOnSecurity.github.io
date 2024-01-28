@@ -4,21 +4,23 @@ toc: true
 title: "[Rough Draft] Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Handling All Services)"
 ---
 
-There are many AWS services that do not require a VPC to make a resource public through network access. Let's walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.
+While having Private VPC accounts is a great first step -- it is only a partial solution -- since there are many AWS services that do not require a VPC to make a resource public through network access.
+
+There are hundreds of AWS services -- nobody knows them all -- so what do you do?
 
 ## Handling All Those Services
 
-Each of the hundreds of AWS services have their own nuances and possible security problems. The primary way to mitigate this risk is to deploy an allowlist strategy for IAM service prefixes, which limits the amount of AWS services you need to know in-depth.
+Since each AWS service has its own nuances and possible security problems. The primary way to mitigate this risk is to [implement an allowlist](#implementing-the-allowlist) strategy for IAM services, which limits the amount of AWS services you need to know in-depth.
 
-Once you have this allowlist, you can check the [Mitigations Per Service](#mitigations-per-service) section and ensure you have the proper mitigations in place.
+Once you have this allowlist, you can cross-refence each service with the [Mitigations Per Service](#mitigations-per-service) section and ensure you have the proper mitigations in place.
 
 ### Implementing the Allowlist
 
 When a customer requests an AWS account[^1424], the fill-out form should ask them a set of questions including, "Which AWS services and regions will you be using?"
 
-[^1424]: For sandbox accounts, this may not be realistic, so you will need to manually maintain a deny list of dangerous services. Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, nuking) regularly and only have public data in them.
+[^1424]: For sandbox accounts, this may not be realistic, so you may need to manually maintain a deny list of dangerous services. Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, [nuking](https://github.com/rebuy-de/aws-nuke)) regularly and only have public data in them.
 
-This will end up translating to e.g.
+This can get fed into whatever your account creation automation you have setup. As a concrete example, let's say we end up translating to e.g. [Terraform local variables](https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/main/subaccounts/smoky-production/configuration_baseline/locals.tf)
 ```go
 locals {
   services = ["dynamodb", "ec2", "s3"]
@@ -26,29 +28,49 @@ locals {
 }
 ```
 
-Which will further be passed into a configuration module, an SCP module, or both, for the subaccount.
+Which will further be passed into a [configuration module](https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/tree/main/modules/subaccount_baselines/configuration), an [SCP module](https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/tree/main/modules/subaccount_baselines/scps), or both, for the subaccount -- in order to establish a security baseline.
 
 ### Service-Specific Mitigations
 
 Rather than simply giving the subaccount admin IAM role `"ec2:*"` and calling it a day, you should go further and ask service-specific questions.
 
 - "Do you need publicly accessible EC2 resources? If so, please explain why."
-- "Can you use our Terraform module for launching EC2? If not, please explain why."
+- "Can you use our Terraform module for launching EC2 instances? If not, please explain why."
+- "Do you need to launch EC2 instances with public AMIs?"
 
 Which can, depending on the answers, end up getting translated to e.g.
 ```go
 module "project_x_account" {
-  source = "../../modules/subaccounts/configuration"
+  source = "../../modules/subaccounts/scps"
 
   services = local.services
   regions = local.regions
 
-  imdsv1_disabled = false
+  deny_public_ami_ec2 = false
 }
 ```
-If for some reason the customer needed IMDSv1 enabled in their account.
+If for some reason the customer needs to use public AMIs.
 
-The `imdsv1_disabled` argument, will turn-off a mitigation that is on by default, such as an [SCP enforcing IMDSv2](https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/require_imdsv2.tf#L5-L28) through the `"ec2:MetadataHttpTokens"` [condition key](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys).
+The `deny_public_ami_ec2` argument, will turn-off a mitigation that is on by default, such as:
+```go
+    # DenyEc2PublicAMI
+    {
+      include = var.deny_public_ami_ec2,
+      effect = "Deny"
+      actions = ["ec2:RunInstances"]
+      resources = ["arn:aws:ec2:*::image/*"]
+      conditions = [
+        {
+          test     = "Bool"
+          variable = "ec2:Public"
+
+          values = [
+            "true",
+          ]
+        },
+      ]
+    },
+```
 
 ## Mitigation Types
 

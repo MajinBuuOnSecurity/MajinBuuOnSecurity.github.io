@@ -52,7 +52,7 @@ Acronyms galour:
 - CSRF
 - CSP
 - HSTS
-- SOP
+- [SOP](https://en.wikipedia.org/wiki/Same-origin_policy)
 - SQLi / RCE
 - SSRF
 - XFO

@@ -4,7 +4,7 @@ toc: true
 title: "[Rough Draft] Preventing Accidental Internet-Exposure of AWS Resources (Part 3: Tech Debt Mountain)"
 ---
 
-When addressing a vast, monolithic account housing a blend of private and public assets, how can you rectify the absence of preventative design principles?
+When addressing a vast, legacy monolithic account housing a blend of private and public assets, how can you rectify the absence of preventative design principles?
 
 ![alt text](https://i.imgur.com/t0Kx9jS.png)
 
