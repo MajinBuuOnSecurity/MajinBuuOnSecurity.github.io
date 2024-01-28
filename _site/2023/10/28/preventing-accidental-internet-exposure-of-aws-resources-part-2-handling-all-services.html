@@ -12,8 +12,8 @@
 <meta property="og:title" content="[Rough Draft] Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Handling All Services)" />
 <meta name="author" content="Majin Buu" />
 <meta property="og:locale" content="en" />
-<meta name="description" content="There are many AWS services that do not require a VPC to make a resource public through network access. Let’s walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them." />
-<meta property="og:description" content="There are many AWS services that do not require a VPC to make a resource public through network access. Let’s walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them." />
+<meta name="description" content="While having Private VPC accounts is a great first step – it is only a partial solution – since there are many AWS services that do not require a VPC to make a resource public through network access." />
+<meta property="og:description" content="While having Private VPC accounts is a great first step – it is only a partial solution – since there are many AWS services that do not require a VPC to make a resource public through network access." />
 <link rel="canonical" href="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html" />
 <meta property="og:url" content="http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html" />
 <meta property="og:site_name" content="Majin Buu on Security" />
@@ -22,7 +22,7 @@
 <meta name="twitter:card" content="summary" />
 <meta property="twitter:title" content="[Rough Draft] Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Handling All Services)" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"There are many AWS services that do not require a VPC to make a resource public through network access. Let’s walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.","headline":"[Rough Draft] Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Handling All Services)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html"}</script>
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Majin Buu"},"dateModified":"2023-10-28T00:00:00-07:00","datePublished":"2023-10-28T00:00:00-07:00","description":"While having Private VPC accounts is a great first step – it is only a partial solution – since there are many AWS services that do not require a VPC to make a resource public through network access.","headline":"[Rough Draft] Preventing Accidental Internet-Exposure of AWS Resources (Part 2: Handling All Services)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://localhost:4000/logo.jpeg"},"name":"Majin Buu"},"url":"http://localhost:4000/2023/10/28/preventing-accidental-internet-exposure-of-aws-resources-part-2-handling-all-services.html"}</script>
 <!-- End Jekyll SEO tag -->
 
 
@@ -132,26 +132,28 @@
   </header>
 
   <div class="post-content e-content" itemprop="articleBody">
-    <p>There are many AWS services that do not require a VPC to make a resource public through network access. Let’s walk through a bunch of different services and list the corresponding mitigations you need to put in place for each of them.</p>
+    <p>While having Private VPC accounts is a great first step – it is only a partial solution – since there are many AWS services that do not require a VPC to make a resource public through network access.</p>
+
+<p>There are hundreds of AWS services – nobody knows them all – so what do you do?</p>
 
 <h2 id="handling-all-those-services">Handling All Those Services</h2>
 
-<p>Each of the hundreds of AWS services have their own nuances and possible security problems. The primary way to mitigate this risk is to deploy an allowlist strategy for IAM service prefixes, which limits the amount of AWS services you need to know in-depth.</p>
+<p>Since each AWS service has its own nuances and possible security problems. The primary way to mitigate this risk is to <a href="#implementing-the-allowlist">implement an allowlist</a> strategy for IAM services, which limits the amount of AWS services you need to know in-depth.</p>
 
-<p>Once you have this allowlist, you can check the <a href="#mitigations-per-service">Mitigations Per Service</a> section and ensure you have the proper mitigations in place.</p>
+<p>Once you have this allowlist, you can cross-refence each service with the <a href="#mitigations-per-service">Mitigations Per Service</a> section and ensure you have the proper mitigations in place.</p>
 
 <h3 id="implementing-the-allowlist">Implementing the Allowlist</h3>
 
 <p>When a customer requests an AWS account<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">1</a></sup>, the fill-out form should ask them a set of questions including, “Which AWS services and regions will you be using?”</p>
 
-<p>This will end up translating to e.g.</p>
+<p>This can get fed into whatever your account creation automation you have setup. As a concrete example, let’s say we end up translating to e.g. <a href="https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/main/subaccounts/smoky-production/configuration_baseline/locals.tf">Terraform local variables</a></p>
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">locals</span> <span class="p">{</span>
   <span class="n">services</span> <span class="o">=</span> <span class="p">[</span><span class="s">"dynamodb"</span><span class="p">,</span> <span class="s">"ec2"</span><span class="p">,</span> <span class="s">"s3"</span><span class="p">]</span>
   <span class="n">regions</span> <span class="o">=</span> <span class="p">[</span><span class="s">"us-east-2"</span><span class="p">]</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>Which will further be passed into a configuration module, an SCP module, or both, for the subaccount.</p>
+<p>Which will further be passed into a <a href="https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/tree/main/modules/subaccount_baselines/configuration">configuration module</a>, an <a href="https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/tree/main/modules/subaccount_baselines/scps">SCP module</a>, or both, for the subaccount – in order to establish a security baseline.</p>
 
 <h3 id="service-specific-mitigations">Service-Specific Mitigations</h3>
 
@@ -159,22 +161,41 @@
 
 <ul>
   <li>“Do you need publicly accessible EC2 resources? If so, please explain why.”</li>
-  <li>“Can you use our Terraform module for launching EC2? If not, please explain why.”</li>
+  <li>“Can you use our Terraform module for launching EC2 instances? If not, please explain why.”</li>
+  <li>“Do you need to launch EC2 instances with public AMIs?”</li>
 </ul>
 
 <p>Which can, depending on the answers, end up getting translated to e.g.</p>
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">module</span> <span class="s">"project_x_account"</span> <span class="p">{</span>
-  <span class="n">source</span> <span class="o">=</span> <span class="s">"../../modules/subaccounts/configuration"</span>
+  <span class="n">source</span> <span class="o">=</span> <span class="s">"../../modules/subaccounts/scps"</span>
 
   <span class="n">services</span> <span class="o">=</span> <span class="n">local</span><span class="o">.</span><span class="n">services</span>
   <span class="n">regions</span> <span class="o">=</span> <span class="n">local</span><span class="o">.</span><span class="n">regions</span>
 
-  <span class="n">imdsv1_disabled</span> <span class="o">=</span> <span class="no">false</span>
+  <span class="n">deny_public_ami_ec2</span> <span class="o">=</span> <span class="no">false</span>
 <span class="p">}</span>
 </code></pre></div></div>
-<p>If for some reason the customer needed IMDSv1 enabled in their account.</p>
+<p>If for some reason the customer needs to use public AMIs.</p>
 
-<p>The <code class="language-plaintext highlighter-rouge">imdsv1_disabled</code> argument, will turn-off a mitigation that is on by default, such as an <a href="https://github.com/ScaleSec/terraform_aws_scp/blob/521ac29d712a6ebb51feb6f11b56e6c40b61bada/security_controls_scp/modules/ec2/require_imdsv2.tf#L5-L28">SCP enforcing IMDSv2</a> through the <code class="language-plaintext highlighter-rouge">"ec2:MetadataHttpTokens"</code> <a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-policy-keys">condition key</a>.</p>
+<p>The <code class="language-plaintext highlighter-rouge">deny_public_ami_ec2</code> argument, will turn-off a mitigation that is on by default, such as:</p>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="err">#</span> <span class="n">DenyEc2PublicAMI</span>
+    <span class="p">{</span>
+      <span class="n">include</span> <span class="o">=</span> <span class="k">var</span><span class="o">.</span><span class="n">deny_public_ami_ec2</span><span class="p">,</span>
+      <span class="n">effect</span> <span class="o">=</span> <span class="s">"Deny"</span>
+      <span class="n">actions</span> <span class="o">=</span> <span class="p">[</span><span class="s">"ec2:RunInstances"</span><span class="p">]</span>
+      <span class="n">resources</span> <span class="o">=</span> <span class="p">[</span><span class="s">"arn:aws:ec2:*::image/*"</span><span class="p">]</span>
+      <span class="n">conditions</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="n">test</span>     <span class="o">=</span> <span class="s">"Bool"</span>
+          <span class="n">variable</span> <span class="o">=</span> <span class="s">"ec2:Public"</span>
+
+          <span class="n">values</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s">"true"</span><span class="p">,</span>
+          <span class="p">]</span>
+        <span class="p">},</span>
+      <span class="p">]</span>
+    <span class="p">},</span>
+</code></pre></div></div>
 
 <h2 id="mitigation-types">Mitigation Types</h2>
 
@@ -503,7 +524,7 @@
 <div class="footnotes" role="doc-endnotes">
   <ol>
     <li id="fn:1424" role="doc-endnote">
-      <p>For sandbox accounts, this may not be realistic, so you will need to manually maintain a deny list of dangerous services. Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, nuking) regularly and only have public data in them. <a href="#fnref:1424" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>For sandbox accounts, this may not be realistic, so you may need to manually maintain a deny list of dangerous services. Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, <a href="https://github.com/rebuy-de/aws-nuke">nuking</a>) regularly and only have public data in them. <a href="#fnref:1424" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:777" role="doc-endnote">
       <p>By default only the <code class="language-plaintext highlighter-rouge">system:public-info-viewer</code> cluster role provides access to a set of endpoints for the <code class="language-plaintext highlighter-rouge">system:unauthenticated</code> group. These endpoints (e.g. <code class="language-plaintext highlighter-rouge">/healthz</code>, <code class="language-plaintext highlighter-rouge">/livez</code>, <code class="language-plaintext highlighter-rouge">/readyz</code>, and <code class="language-plaintext highlighter-rouge">/version</code>) are <a href="https://aws.amazon.com/blogs/security/how-to-use-new-amazon-guardduty-eks-protection-findings/">used by Network Load Balancers to perform health checks</a>. <a href="#fnref:777" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
@@ -557,7 +578,7 @@
       
       
       
-      <p>Copyright © 2023 Majin Buu; All rights reserved.</p>
+      <p>Copyright © 2023&nbsp;-&nbsp;2024 Majin Buu; All rights reserved.</p>
       
     </div>
   </div>
