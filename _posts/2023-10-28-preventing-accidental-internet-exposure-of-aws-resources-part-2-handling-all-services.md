@@ -20,7 +20,7 @@ When a customer requests an AWS account[^1424], the fill-out form should ask the
 
 [^1424]: For sandbox accounts, this may not be realistic, so you may need to manually maintain a deny list of dangerous services. Granted, you should be seamlessly re-creating sandbox accounts (or, less ideally, [nuking](https://github.com/rebuy-de/aws-nuke)) regularly and only have public data in them.
 
-This can get fed into whatever your account creation automation you have setup. As a concrete example, let's say we end up translating to e.g. [Terraform local variables](https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/main/subaccounts/smoky-production/configuration_baseline/locals.tf)
+This can get fed into whatever your account creation automation you have setup. As a concrete example, let's say we end up translating to e.g. [Terraform local variables](https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/main/subaccounts/smoky-production/configuration_baseline/locals.tf):
 ```go
 locals {
   services = ["dynamodb", "ec2", "s3"]
@@ -32,13 +32,12 @@ Which will further be passed into a [configuration module](https://github.com/Ma
 
 ### Service-Specific Mitigations
 
-Rather than simply giving the subaccount admin IAM role `"ec2:*"` and calling it a day, you should go further and ask service-specific questions.
-
+Rather than simply giving the subaccount admin IAM role `"ec2:*"` and calling it a day, you should go further and ask service-specific questions:
 - "Do you need publicly accessible EC2 resources? If so, please explain why."
 - "Can you use our Terraform module for launching EC2 instances? If not, please explain why."
 - "Do you need to launch EC2 instances with public AMIs?"
 
-Which can, depending on the answers, end up getting translated to e.g.
+Which can, if for some reason the customer needs to use public AMIs, end up getting translated to:
 ```go
 module "project_x_account" {
   source = "../../modules/subaccounts/scps"
@@ -49,11 +48,10 @@ module "project_x_account" {
   deny_public_ami_ec2 = false
 }
 ```
-If for some reason the customer needs to use public AMIs.
 
-The `deny_public_ami_ec2` argument, will turn-off a mitigation that is on by default, such as:
+
+The `deny_public_ami_ec2` argument, will turn-off a mitigation that is on by default, [via the module](https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/df5a1021fb1ff6975d394ade7081050472f0e8ff/modules/subaccount_baselines/scps/AccountSCP.tf#L23-L65):
 ```go
-    # DenyEc2PublicAMI
     {
       include = var.deny_public_ami_ec2,
       effect = "Deny"

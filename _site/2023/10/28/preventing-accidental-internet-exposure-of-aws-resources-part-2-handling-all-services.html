@@ -146,7 +146,7 @@
 
 <p>When a customer requests an AWS account<sup id="fnref:1424" role="doc-noteref"><a href="#fn:1424" class="footnote" rel="footnote">1</a></sup>, the fill-out form should ask them a set of questions including, “Which AWS services and regions will you be using?”</p>
 
-<p>This can get fed into whatever your account creation automation you have setup. As a concrete example, let’s say we end up translating to e.g. <a href="https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/main/subaccounts/smoky-production/configuration_baseline/locals.tf">Terraform local variables</a></p>
+<p>This can get fed into whatever your account creation automation you have setup. As a concrete example, let’s say we end up translating to e.g. <a href="https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/main/subaccounts/smoky-production/configuration_baseline/locals.tf">Terraform local variables</a>:</p>
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">locals</span> <span class="p">{</span>
   <span class="n">services</span> <span class="o">=</span> <span class="p">[</span><span class="s">"dynamodb"</span><span class="p">,</span> <span class="s">"ec2"</span><span class="p">,</span> <span class="s">"s3"</span><span class="p">]</span>
   <span class="n">regions</span> <span class="o">=</span> <span class="p">[</span><span class="s">"us-east-2"</span><span class="p">]</span>
@@ -157,15 +157,14 @@
 
 <h3 id="service-specific-mitigations">Service-Specific Mitigations</h3>
 
-<p>Rather than simply giving the subaccount admin IAM role <code class="language-plaintext highlighter-rouge">"ec2:*"</code> and calling it a day, you should go further and ask service-specific questions.</p>
-
+<p>Rather than simply giving the subaccount admin IAM role <code class="language-plaintext highlighter-rouge">"ec2:*"</code> and calling it a day, you should go further and ask service-specific questions:</p>
 <ul>
   <li>“Do you need publicly accessible EC2 resources? If so, please explain why.”</li>
   <li>“Can you use our Terraform module for launching EC2 instances? If not, please explain why.”</li>
   <li>“Do you need to launch EC2 instances with public AMIs?”</li>
 </ul>
 
-<p>Which can, depending on the answers, end up getting translated to e.g.</p>
+<p>Which can, if for some reason the customer needs to use public AMIs, end up getting translated to:</p>
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">module</span> <span class="s">"project_x_account"</span> <span class="p">{</span>
   <span class="n">source</span> <span class="o">=</span> <span class="s">"../../modules/subaccounts/scps"</span>
 
@@ -175,11 +174,9 @@
   <span class="n">deny_public_ami_ec2</span> <span class="o">=</span> <span class="no">false</span>
 <span class="p">}</span>
 </code></pre></div></div>
-<p>If for some reason the customer needs to use public AMIs.</p>
 
-<p>The <code class="language-plaintext highlighter-rouge">deny_public_ami_ec2</code> argument, will turn-off a mitigation that is on by default, such as:</p>
-<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="err">#</span> <span class="n">DenyEc2PublicAMI</span>
-    <span class="p">{</span>
+<p>The <code class="language-plaintext highlighter-rouge">deny_public_ami_ec2</code> argument, will turn-off a mitigation that is on by default, <a href="https://github.com/MajinBuuOnSecurity/Terraform-Monorepo/blob/df5a1021fb1ff6975d394ade7081050472f0e8ff/modules/subaccount_baselines/scps/AccountSCP.tf#L23-L65">via the module</a>:</p>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">{</span>
       <span class="n">include</span> <span class="o">=</span> <span class="k">var</span><span class="o">.</span><span class="n">deny_public_ami_ec2</span><span class="p">,</span>
       <span class="n">effect</span> <span class="o">=</span> <span class="s">"Deny"</span>
       <span class="n">actions</span> <span class="o">=</span> <span class="p">[</span><span class="s">"ec2:RunInstances"</span><span class="p">]</span>
